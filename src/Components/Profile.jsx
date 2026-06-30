@@ -4,25 +4,37 @@ import { getWorkspaceMembers } from '../services/workspaceService'
 function Profile({ onCerrar, chat }) {
     const [miembros, setMiembros] = useState([]);
     const [cargandoMiembros, setCargandoMiembros] = useState(false);
-    const [errorMiembros, setErrorMiembros] = useState('');
 
     useEffect(() => {
         if (!chat?.workspace_id) return;
 
-        async function cargarMiembros() {
-            setCargandoMiembros(true);
-            setErrorMiembros('');
+        let cancelado = false;
+
+        async function cargarMiembros(esPrimeraCarga) {
+            if (esPrimeraCarga) setCargandoMiembros(true);
             try {
                 const res = await getWorkspaceMembers(chat.workspace_id);
-                setMiembros(res?.data?.members || []);
+                if (!cancelado) setMiembros(res?.data?.members || []);
             } catch (e) {
-                setErrorMiembros(e.message);
+                // No mostramos el error técnico al usuario: si todavía no hay
+                // miembros aceptados (o falla momentáneamente), simplemente
+                // se muestra "0 miembros" y se vuelve a intentar solo.
+                console.error('Error al obtener miembros:', e.message);
             } finally {
-                setCargandoMiembros(false);
+                if (esPrimeraCarga) setCargandoMiembros(false);
             }
         }
 
-        cargarMiembros();
+        cargarMiembros(true);
+
+        // Refrescar periódicamente para que la lista se vaya completando
+        // a medida que los usuarios invitados aceptan unirse al grupo.
+        const intervalo = setInterval(() => cargarMiembros(false), 5000);
+
+        return () => {
+            cancelado = true;
+            clearInterval(intervalo);
+        };
     }, [chat?.workspace_id]);
 
     return (
@@ -64,9 +76,8 @@ function Profile({ onCerrar, chat }) {
                     <h3 style={{ marginBottom: '10px' }}>Miembros del grupo</h3>
 
                     {cargandoMiembros && <p style={{ fontSize: '0.85rem', color: '#888' }}>Cargando miembros...</p>}
-                    {errorMiembros && <p style={{ fontSize: '0.85rem', color: '#B80531' }}>{errorMiembros}</p>}
 
-                    {!cargandoMiembros && !errorMiembros && miembros.length === 0 && (
+                    {!cargandoMiembros && miembros.length === 0 && (
                         <p style={{ fontSize: '0.85rem', color: '#888' }}>Todavía no hay miembros que hayan aceptado.</p>
                     )}
 
