@@ -87,7 +87,7 @@ function Menu({ onChatClick, darkMode, onToggleDarkMode, esOculto }) {
     async function handleAbandonar(ws) {
         if (!window.confirm('¿Seguro que querés abandonar este grupo?')) return;
         try {
-            if (ws.rol === MEMBER_WORKSPACE_ROLES.OWNER) {
+            if (ws.member_rol === MEMBER_WORKSPACE_ROLES.OWNER) {
                 await eliminarGrupo(ws.workspace_id);
             } else {
                 await abandonarGrupo(ws.workspace_id);
@@ -103,7 +103,7 @@ function Menu({ onChatClick, darkMode, onToggleDarkMode, esOculto }) {
             id: ws.workspace_id,
             nombre: ws.workspace_nombre,
             imagen: '/foto-perfil.png',
-            rol: ws.rol,
+            rol: ws.member_rol,
             workspace_id: ws.workspace_id,
             esGrupo: true
         });
@@ -182,7 +182,7 @@ function Menu({ onChatClick, darkMode, onToggleDarkMode, esOculto }) {
                                 <div className="chat-panel_superior">
                                     <h3>{ws.workspace_nombre}</h3>
                                     <h5 style={{ fontSize: '0.7rem', color: 'var(--mid-green)', fontWeight: 600 }}>
-                                        {ws.rol}
+                                        {ws.member_rol}
                                     </h5>
                                 </div>
                                 <div className="chat-panel_inferior">
@@ -192,7 +192,7 @@ function Menu({ onChatClick, darkMode, onToggleDarkMode, esOculto }) {
 
                             {/* Acciones contextuales según rol */}
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', paddingRight: '4px' }}>
-                                {ws.rol === MEMBER_WORKSPACE_ROLES.OWNER && (
+                                {ws.member_rol === MEMBER_WORKSPACE_ROLES.OWNER && (
                                     <button
                                         title="Invitar al grupo"
                                         style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--mid-green)' }}
@@ -204,7 +204,7 @@ function Menu({ onChatClick, darkMode, onToggleDarkMode, esOculto }) {
                                     </button>
                                 )}
                                 <button
-                                    title={ws.rol === MEMBER_WORKSPACE_ROLES.OWNER ? 'Eliminar grupo' : 'Abandonar grupo'}
+                                    title={ws.member_rol === MEMBER_WORKSPACE_ROLES.OWNER ? 'Eliminar grupo' : 'Abandonar grupo'}
                                     style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#B80531' }}
                                     onClick={() => handleAbandonar(ws)}
                                 >
