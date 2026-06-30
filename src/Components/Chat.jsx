@@ -108,7 +108,7 @@ function Chat({ chat, onVolver }) {
 
                     <div className="chat-header_image" onClick={togglePerfil} style={{ cursor: 'pointer' }}>
                         <img src={chat?.imagen || '/foto-grupo.jpg'} alt={chat?.nombre}
-                            style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} />
+                            style={{ width: '110%', height: '110%', objectFit: 'cover', borderRadius: '50%' }} />
                     </div>
 
                     <div className="chat-header_info" onClick={togglePerfil} style={{ cursor: 'pointer', flex: 1 }}>
