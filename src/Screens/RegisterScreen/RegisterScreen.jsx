@@ -24,8 +24,8 @@ export const RegisterScreen = () => {
 
     useEffect(() => {
         if (registerResponse?.ok) {
-            syncroLogin(registerResponse?.data?.access_token)
-            navigate('/home')
+            alert('¡Registro exitoso! Por favor revisa tu correo electrónico para verificar tu cuenta antes de iniciar sesión.')
+            navigate('/login')
         }
     }, [registerResponse])
 
