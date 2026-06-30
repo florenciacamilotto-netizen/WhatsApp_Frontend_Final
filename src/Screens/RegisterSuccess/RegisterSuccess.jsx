@@ -13,7 +13,7 @@ export const RegisterSuccess = () => {
                 <div className="login-form_login" style={{ textAlign: 'center', gap: '15px' }}>
                     <h2 style={{ margin: 0 }}>¡Registro exitoso!</h2>
                     <p style={{ fontSize: '14px', lineHeight: '1.5' }}>
-                        Por favor revisá tu correo electrónico para verificar tu cuenta
+                        Por favor, revisá tu correo electrónico para verificar tu cuenta
                         antes de iniciar sesión.
                     </p>
                     <button
