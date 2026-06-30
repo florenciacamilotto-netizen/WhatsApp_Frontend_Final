@@ -19,7 +19,7 @@ export const RegisterScreen = () => {
     const initial_form_state = { username: '', email: '', password: '' }
 
     function onSubmit(formData) {
-        sendRequestRegister(() => register(formData.email, formData.password, formData.username))
+        sendRequestRegister(() => register(formData.username, formData.email, formData.password))
     }
 
     useEffect(() => {
