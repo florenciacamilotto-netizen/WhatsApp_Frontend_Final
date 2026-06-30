@@ -77,7 +77,7 @@ export const RegisterScreen = () => {
                             </span>
                         )}
 
-                        <p style={{ marginTop: '15px', fontSize: '14px' }}>
+                        <p style={{ marginTop: '35px', fontSize: '14px' }}>
                             ¿Ya tenés cuenta? <Link to="/login">Iniciá sesión</Link>
                         </p>
                     </div>

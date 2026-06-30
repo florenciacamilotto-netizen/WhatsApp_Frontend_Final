@@ -60,7 +60,7 @@ export const Login = () => {
                             </span>
                         )}
 
-                        <p style={{ marginTop: '15px', fontSize: '14px' }}>
+                        <p style={{ marginTop: '35px', fontSize: '14px' }}>
                             ¿No tenés cuenta? <Link to="/register">Registrate</Link>
                         </p>
                     </div>

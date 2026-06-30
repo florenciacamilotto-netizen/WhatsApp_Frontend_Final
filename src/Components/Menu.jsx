@@ -222,12 +222,12 @@ function Menu({ onChatClick, darkMode, onToggleDarkMode, esOculto }) {
             {modalCrear && (
                 <div style={styles.overlay}>
                     <div style={styles.modal}>
-                        <h3 style={{ marginBottom: '12px' }}>Nuevo grupo</h3>
+                        <h3 style={{ marginBottom: '17px', paddingLeft: '7px' }}>Nuevo grupo</h3>
 
                         <input
                             style={styles.input}
                             type="text"
-                            placeholder="Nombre del grupo *"
+                            placeholder="Nombre del grupo*"
                             value={nuevoNombre}
                             onChange={e => setNuevoNombre(e.target.value)}
                         />
@@ -239,9 +239,9 @@ function Menu({ onChatClick, darkMode, onToggleDarkMode, esOculto }) {
                             onChange={e => setNuevaDesc(e.target.value)}
                         />
 
-                        <p style={{ fontSize: '0.85rem', marginBottom: '6px' }}>Invitar al menos 2 usuarios:</p>
+                        <p style={{ fontSize: '0.85rem', marginTop: '7px', marginBottom: '15px', paddingLeft: '7px' }}>Invitar al menos 2 usuarios:</p>
                         {emailsInvitados.map((email, i) => (
-                            <div key={i} style={{ display: 'flex', gap: '6px', marginBottom: '6px' }}>
+                            <div key={i} style={{ display: 'flex', gap: '6px', marginBottom: '10px' }}>
                                 <input
                                     style={{ ...styles.input, marginBottom: 0, flex: 1 }}
                                     type="email"
@@ -258,7 +258,11 @@ function Menu({ onChatClick, darkMode, onToggleDarkMode, esOculto }) {
                                 )}
                             </div>
                         ))}
-                        <button style={styles.btnSecondary} onClick={() => setEmailsInvitados([...emailsInvitados, ''])}>
+                        <button
+                            className="btnSecondary"
+                            style={{ marginTop: '18px', marginBottom: '6px' }}
+                            onClick={() => setEmailsInvitados([...emailsInvitados, ''])}
+                        >
                             + Agregar otro
                         </button>
 
@@ -268,7 +272,7 @@ function Menu({ onChatClick, darkMode, onToggleDarkMode, esOculto }) {
                             <button style={styles.btnPrimary} onClick={handleCrearGrupo} disabled={creando}>
                                 {creando ? 'Creando...' : 'Crear grupo'}
                             </button>
-                            <button style={styles.btnSecondary} onClick={() => { setModalCrear(false); setErrorCrear(''); }}>
+                            <button className='btnSecondary' onClick={() => { setModalCrear(false); setErrorCrear(''); }}>
                                 Cancelar
                             </button>
                         </div>
@@ -319,41 +323,63 @@ const styles = {
     overlay: {
         position: 'fixed', inset: 0,
         background: 'rgba(0,0,0,0.5)',
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
         zIndex: 9999
     },
     modal: {
         background: 'var(--panel-background, #fff)',
-        borderRadius: '12px',
-        padding: '24px',
-        width: '340px',
+        borderRadius: '30px',
+        width: '350px',
+        padding: '35px',
         maxWidth: '90vw',
-        boxShadow: '0 8px 32px rgba(0,0,0,0.2)',
-        display: 'flex', flexDirection: 'column'
+        boxShadow: '0 8px 32px solid var(--mid-grey)',
+        display: 'flex',
+        flexDirection: 'column'
     },
     input: {
-        width: '100%', padding: '8px 12px',
-        borderRadius: '8px', border: '1px solid #ccc',
-        marginBottom: '10px', fontSize: '0.9rem',
-        boxSizing: 'border-box', background: 'var(--input-background, #f0f0f0)'
+        background: 'var(--soft-grey)',
+        height: '45px',
+        width: '100%',
+        padding: '8px 12px',
+        borderRadius: '50px',
+        border: 'var(--soft-grey)',
+        marginBottom: '10px',
+        fontSize: '0.9rem',
+        boxSizing: 'border-box',
+        background: 'var(--input-background, #f0f0f0)'
     },
     btnPrimary: {
-        flex: 1, padding: '8px',
-        background: 'var(--mid-green, #00a884)',
-        color: '#fff', border: 'none',
-        borderRadius: '8px', cursor: 'pointer', fontWeight: 600
+        flex: 1,
+        padding: '15px 18px',
+        background: 'var(--light-green)',
+        color: 'solid #0000',
+        border: '1.1px solid var(--light-green)', // was 'none'
+        borderRadius: '30px',
+        cursor: 'pointer',
+        fontWeight: 600,
+        boxSizing: 'border-box' // <-- add this
     },
     btnSecondary: {
-        flex: 1, padding: '8px',
+        flex: 1,
+        padding: '15px 18px',
         background: 'transparent',
-        border: '1px solid #ccc',
-        borderRadius: '8px', cursor: 'pointer',
-        marginBottom: '6px'
+        border: '1.1px solid var(--mid-grey)',
+        borderRadius: '30px', cursor: 'pointer',
+        fontWeight: 600, // optional, for visual consistency
+        boxSizing: 'border-box' // <-- add this
+        // remove marginBottom: '6px' — that's pushing it down/changing its effective box, not relevant to width/height equality, but it's an odd leftover here
     },
     btnDanger: {
         padding: '6px 10px',
-        background: '#B80531', color: '#fff',
-        border: 'none', borderRadius: '6px', cursor: 'pointer'
+        background: '#B80531',
+        color: '#fff',
+        border: 'none',
+        borderRadius: '100px',
+        cursor: 'pointer',
+        height: '45px',
+        width: '45px'
     }
 };
 

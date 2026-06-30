@@ -38,6 +38,10 @@
     flex-direction: column;
 }
 
+.login-form_login p{
+    margin-top: 10px;
+}
+
 .login-form_login input {
     background-color: var(--soft-grey);
     border: none;
@@ -47,6 +51,7 @@
     height: 45px;
     margin: 10px;
     padding-left: 20px;
+    width: 230px;
 }
 
 .login-form_login input:focus {

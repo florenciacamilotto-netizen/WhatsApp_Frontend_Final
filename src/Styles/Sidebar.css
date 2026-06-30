@@ -17,6 +17,7 @@
     flex-direction: column;
     gap: 4px;
     margin-top: 12px;
+    margin-bottom: 13px;
 }
 
 .dark-mode .sidebar-icons svg {
@@ -36,9 +37,24 @@
     width: 40px;
 }
 
+.sidebar-icons button img {
+    border-radius: 100px;
+    height: 35px;
+    width: 35px;
+}
+
 .sidebar-icon_messages {
     background-color: var(--click-grey);
     border-radius: 50%;
+}
+
+.chat-panel_image {
+    margin-right: 11px;
+    margin-top: 5px;
+}
+
+.chat-panel_image:hover {
+    background-color: transparent;
 }
 
 .sidebar-icon_messages svg {
