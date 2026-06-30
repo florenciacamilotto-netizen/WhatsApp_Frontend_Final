@@ -1,6 +1,30 @@
-import React from 'react'
+import React, { useEffect, useState } from 'react'
+import { getWorkspaceMembers } from '../services/workspaceService'
 
 function Profile({ onCerrar, chat }) {
+    const [miembros, setMiembros] = useState([]);
+    const [cargandoMiembros, setCargandoMiembros] = useState(false);
+    const [errorMiembros, setErrorMiembros] = useState('');
+
+    useEffect(() => {
+        if (!chat?.workspace_id) return;
+
+        async function cargarMiembros() {
+            setCargandoMiembros(true);
+            setErrorMiembros('');
+            try {
+                const res = await getWorkspaceMembers(chat.workspace_id);
+                setMiembros(res?.data?.members || []);
+            } catch (e) {
+                setErrorMiembros(e.message);
+            } finally {
+                setCargandoMiembros(false);
+            }
+        }
+
+        cargarMiembros();
+    }, [chat?.workspace_id]);
+
     return (
         <div className="profile-container">
             <div className="profile-header">
@@ -12,7 +36,7 @@ function Profile({ onCerrar, chat }) {
                 >{/* Ícono Cruz */}
                     <svg viewBox="0 0 24 24" height="24" width="24" preserveAspectRatio="xMidYMid meet" fill="none"><title>ic-close</title><path d="M12 13.4L7.09999 18.3C6.91665 18.4834 6.68332 18.575 6.39999 18.575C6.11665 18.575 5.88332 18.4834 5.69999 18.3C5.51665 18.1167 5.42499 17.8834 5.42499 17.6C5.42499 17.3167 5.51665 17.0834 5.69999 16.9L10.6 12L5.69999 7.10005C5.51665 6.91672 5.42499 6.68338 5.42499 6.40005C5.42499 6.11672 5.51665 5.88338 5.69999 5.70005C5.88332 5.51672 6.11665 5.42505 6.39999 5.42505C6.68332 5.42505 6.91665 5.51672 7.09999 5.70005L12 10.6L16.9 5.70005C17.0833 5.51672 17.3167 5.42505 17.6 5.42505C17.8833 5.42505 18.1167 5.51672 18.3 5.70005C18.4833 5.88338 18.575 6.11672 18.575 6.40005C18.575 6.68338 18.4833 6.91672 18.3 7.10005L13.4 12L18.3 16.9C18.4833 17.0834 18.575 17.3167 18.575 17.6C18.575 17.8834 18.4833 18.1167 18.3 18.3C18.1167 18.4834 17.8833 18.575 17.6 18.575C17.3167 18.575 17.0833 18.4834 16.9 18.3L12 13.4Z" fill="currentColor"></path></svg>
                 </span>
-                <h3>Info. del contacto</h3>
+                <h3>Info. del grupo</h3>
                 {/* Ícono Editar */}
                 <span aria-hidden="true" data-icon="pencil-refreshed" className="xxk0z11 xvy4d1p"><svg viewBox="0 0 24 24" height="24" width="24" preserveAspectRatio="xMidYMid meet" className="" fill="none"><title>pencil-refreshed</title><path d="M5 18.9999H6.4L16.2 9.22488L14.775 7.79988L5 17.5999V18.9999ZM4 20.9999C3.71667 20.9999 3.47917 20.904 3.2875 20.7124C3.09583 20.5207 3 20.2832 3 19.9999V17.5749C3 17.3082 3.05 17.054 3.15 16.8124C3.25 16.5707 3.39167 16.3582 3.575 16.1749L16.2 3.57488C16.3833 3.39154 16.6 3.24988 16.85 3.14988C17.1 3.04988 17.3583 2.99988 17.625 2.99988C17.8917 2.99988 18.1458 3.04988 18.3875 3.14988C18.6292 3.24988 18.85 3.39988 19.05 3.59988L20.425 4.99988C20.625 5.18321 20.7708 5.39571 20.8625 5.63738C20.9542 5.87904 21 6.13321 21 6.39988C21 6.64988 20.9542 6.89988 20.8625 7.14988C20.7708 7.39988 20.625 7.62488 20.425 7.82488L7.825 20.4249C7.64167 20.6082 7.42917 20.7499 7.1875 20.8499C6.94583 20.9499 6.69167 20.9999 6.425 20.9999H4Z" fill="currentColor"></path></svg></span>
             </div>
@@ -22,7 +46,7 @@ function Profile({ onCerrar, chat }) {
                 </div>
                 <div className="profile-info">
                     <h2>{chat?.nombre || "Nombre"}</h2>
-                    <span>{chat?.telefono || "+54 9 11 1234-5678"}</span>
+                    <span>{miembros.length} {miembros.length === 1 ? 'miembro' : 'miembros'}</span>
                     <button className="btn-buscador">
                         {/* Ícono Buscador */}
                         <span aria-hidden="true" class="x1v5yvga xxk0z11 xvy4d1p"><svg viewBox="0 0 24 24" height="24" width="24" preserveAspectRatio="xMidYMid meet" class="" fill="none"><title>ic-search</title><path d="M9.5 16C7.68333 16 6.14583 15.3708 4.8875 14.1125C3.62917 12.8542 3 11.3167 3 9.5C3 7.68333 3.62917 6.14583 4.8875 4.8875C6.14583 3.62917 7.68333 3 9.5 3C11.3167 3 12.8542 3.62917 14.1125 4.8875C15.3708 6.14583 16 7.68333 16 9.5C16 10.2333 15.8833 10.925 15.65 11.575C15.4167 12.225 15.1 12.8 14.7 13.3L20.3 18.9C20.4833 19.0833 20.575 19.3167 20.575 19.6C20.575 19.8833 20.4833 20.1167 20.3 20.3C20.1167 20.4833 19.8833 20.575 19.6 20.575C19.3167 20.575 19.0833 20.4833 18.9 20.3L13.3 14.7C12.8 15.1 12.225 15.4167 11.575 15.65C10.925 15.8833 10.2333 16 9.5 16ZM9.5 14C10.75 14 11.8125 13.5625 12.6875 12.6875C13.5625 11.8125 14 10.75 14 9.5C14 8.25 13.5625 7.1875 12.6875 6.3125C11.8125 5.4375 10.75 5 9.5 5C8.25 5 7.1875 5.4375 6.3125 6.3125C5.4375 7.1875 5 8.25 5 9.5C5 10.75 5.4375 11.8125 6.3125 12.6875C7.1875 13.5625 8.25 14 9.5 14Z" fill="currentColor"></path></svg></span>
@@ -33,6 +57,32 @@ function Profile({ onCerrar, chat }) {
             <div className="profile-description">
                 <span>Info.</span>
             </div>
+
+            {/* ---- MIEMBROS DEL GRUPO (usuarios que aceptaron la invitación) ---- */}
+            <div className="profile-settings">
+                <div className="profile-settings_list" style={{ display: 'block' }}>
+                    <h3 style={{ marginBottom: '10px' }}>Miembros del grupo</h3>
+
+                    {cargandoMiembros && <p style={{ fontSize: '0.85rem', color: '#888' }}>Cargando miembros...</p>}
+                    {errorMiembros && <p style={{ fontSize: '0.85rem', color: '#B80531' }}>{errorMiembros}</p>}
+
+                    {!cargandoMiembros && !errorMiembros && miembros.length === 0 && (
+                        <p style={{ fontSize: '0.85rem', color: '#888' }}>Todavía no hay miembros que hayan aceptado.</p>
+                    )}
+
+                    {!cargandoMiembros && miembros.map(m => (
+                        <div key={m.member_id} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '6px 0' }}>
+                            <img src="/foto-perfil.png" alt={m.user_nombre}
+                                style={{ width: '36px', height: '36px', borderRadius: '50%', objectFit: 'cover' }} />
+                            <div>
+                                <div style={{ fontSize: '0.9rem', fontWeight: 500 }}>{m.user_nombre}</div>
+                                <div style={{ fontSize: '0.78rem', color: '#888' }}>{m.user_email} · {m.member_rol}</div>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            </div>
+
             <div className="profile-settings">
                 <div className="profile-settings_list">
                     { /* Ícono Multimedia */}
