@@ -34,7 +34,7 @@ export async function register(username, email, password) {
         },
         body: JSON.stringify(
             {
-                name: name,
+                name: username,
                 email: email,
                 password: password
             }
