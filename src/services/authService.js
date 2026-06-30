@@ -25,7 +25,7 @@ export async function login(email, password) {
 
 // REGISTER //
 export async function register(username, email, password) {
-
+ 
     const response_http = await fetch(
         ENVIRONMENT.URL_API + "/api/auth/register", {
         method: 'POST',
@@ -34,7 +34,7 @@ export async function register(username, email, password) {
         },
         body: JSON.stringify(
             {
-                username: username,
+                name: username,
                 email: email,
                 password: password
             }
