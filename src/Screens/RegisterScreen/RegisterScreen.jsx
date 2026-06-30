@@ -24,8 +24,7 @@ export const RegisterScreen = () => {
 
     useEffect(() => {
         if (registerResponse?.ok) {
-            alert('¡Registro exitoso! Por favor revisa tu correo electrónico para verificar tu cuenta antes de iniciar sesión.')
-            navigate('/login')
+            navigate('/register-success')
         }
     }, [registerResponse])
 

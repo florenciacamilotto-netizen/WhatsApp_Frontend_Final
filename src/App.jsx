@@ -13,6 +13,7 @@ import Login from './Screens/Login/Login.jsx'
 import Loading from './Screens/Loading/Loading.jsx'
 import Home from './Screens/Home/Home.jsx'
 import { RegisterScreen } from './Screens/RegisterScreen/RegisterScreen.jsx'
+import { RegisterSuccess } from './Screens/RegisterSuccess/RegisterSuccess.jsx'
 import { ResetPasswordScreen } from './Screens/ResetPasswordScreen/ResetPasswordScreen.jsx'
 
 import { AuthContextProvider } from './context/AuthContext'
@@ -33,6 +34,7 @@ function App() {
             <Route path='/' element={<Login />} />
             <Route path='/login' element={<Login />} />
             <Route path='/register' element={<RegisterScreen />} />
+            <Route path='/register-success' element={<RegisterSuccess />} />
             <Route path='/reset-password' element={<ResetPasswordScreen />} />
             <Route path='/loading' element={<Loading />} />
           </Route>
