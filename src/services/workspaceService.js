@@ -21,39 +21,6 @@ export async function getWorkspaces() {
     return response;
 }
 
-// GET /api/workspace/members/me/invitations — Lista las invitaciones pendientes del usuario
-export async function getMyPendingInvitations() {
-    const response_http = await fetch(`${ENVIRONMENT.URL_API}/api/workspace/members/me/invitations`, {
-        method: 'GET',
-        headers: getAuthHeaders()
-    });
-    const response = await response_http.json();
-    if (!response.ok) throw new Error(response.message || "Error al obtener las invitaciones pendientes");
-    return response;
-}
-
-// PUT /api/workspace/:id/members/me/Aceptado — Aceptar una invitación
-export async function acceptInvitation(workspace_id) {
-    const response_http = await fetch(`${ENVIRONMENT.URL_API}/api/workspace/${workspace_id}/members/me/Aceptado`, {
-        method: 'PUT',
-        headers: getAuthHeaders()
-    });
-    const response = await response_http.json();
-    if (!response.ok) throw new Error(response.message || "Error al aceptar la invitación");
-    return response;
-}
-
-// PUT /api/workspace/:id/members/me/Rechazado — Rechazar una invitación
-export async function rejectInvitation(workspace_id) {
-    const response_http = await fetch(`${ENVIRONMENT.URL_API}/api/workspace/${workspace_id}/members/me/Rechazado`, {
-        method: 'PUT',
-        headers: getAuthHeaders()
-    });
-    const response = await response_http.json();
-    if (!response.ok) throw new Error(response.message || "Error al rechazar la invitación");
-    return response;
-}
-
 // POST /api/workspace — Crear un nuevo grupo
 export async function createWorkspace(nombre, descripcion = '') {
     const response_http = await fetch(`${ENVIRONMENT.URL_API}/api/workspace`, {
