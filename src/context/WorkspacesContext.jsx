@@ -3,6 +3,9 @@ import { Outlet } from 'react-router-dom';
 import useRequest from '../hooks/useRequest';
 import {
     getWorkspaces,
+    getMyPendingInvitations,
+    acceptInvitation,
+    rejectInvitation,
     createWorkspace,
     updateWorkspace,
     deleteWorkspace,
@@ -14,6 +17,7 @@ import {
 
 export const WorkspacesContext = createContext({
     workspaces: [],
+    invitaciones: [],
     loading: false,
     error: null,
     refetch: () => {},
@@ -23,20 +27,36 @@ export const WorkspacesContext = createContext({
     invitarMiembro: async () => {},
     degradarme: async () => {},
     abandonarGrupo: async () => {},
-    expulsarMiembro: async () => {}
+    expulsarMiembro: async () => {},
+    aceptarInvitacion: async () => {},
+    rechazarInvitacion: async () => {}
 });
 
 export const WorkspacesContextProvider = () => {
     const { sendRequest, loading, response, error } = useRequest();
     const [workspaces, setWorkspaces] = useState([]);
+    const [invitaciones, setInvitaciones] = useState([]);
 
     const fetchWorkspaces = async () => {
         const res = await sendRequest(getWorkspaces);
         if (res?.data?.workspaces) setWorkspaces(res.data.workspaces);
     };
 
-    // Cargar workspaces al montar
-    React.useEffect(() => { fetchWorkspaces(); }, []);
+    const fetchInvitaciones = async () => {
+        try {
+            const res = await getMyPendingInvitations();
+            setInvitaciones(res?.data?.invitations || []);
+        } catch (e) {
+            // No rompemos la pantalla si falla; simplemente no se muestran invitaciones
+            console.error('Error al obtener invitaciones pendientes:', e.message);
+        }
+    };
+
+    // Cargar workspaces e invitaciones al montar
+    React.useEffect(() => {
+        fetchWorkspaces();
+        fetchInvitaciones();
+    }, []);
 
     // Actualizar lista desde response del hook
     React.useEffect(() => {
@@ -83,8 +103,23 @@ export const WorkspacesContextProvider = () => {
         return await kickMember(workspace_id, member_id);
     }
 
+    async function aceptarInvitacion(workspace_id) {
+        const res = await acceptInvitation(workspace_id);
+        // Saco la invitación de la lista local y refresco los grupos (ahora va a aparecer ahí)
+        setInvitaciones(prev => prev.filter(inv => inv.workspace_id !== workspace_id));
+        await fetchWorkspaces();
+        return res;
+    }
+
+    async function rechazarInvitacion(workspace_id) {
+        const res = await rejectInvitation(workspace_id);
+        setInvitaciones(prev => prev.filter(inv => inv.workspace_id !== workspace_id));
+        return res;
+    }
+
     const providerValue = {
         workspaces,
+        invitaciones,
         loading,
         error,
         refetch: fetchWorkspaces,
@@ -94,7 +129,9 @@ export const WorkspacesContextProvider = () => {
         invitarMiembro,
         degradarme,
         abandonarGrupo,
-        expulsarMiembro
+        expulsarMiembro,
+        aceptarInvitacion,
+        rechazarInvitacion
     };
 
     return (
@@ -108,3 +145,4 @@ export const WorkspacesContextProvider = () => {
 export function useWorkspaces() {
     return useContext(WorkspacesContext);
 }
+

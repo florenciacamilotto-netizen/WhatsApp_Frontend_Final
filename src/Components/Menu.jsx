@@ -8,13 +8,15 @@ function Menu({ onChatClick, darkMode, onToggleDarkMode, esOculto }) {
     const { logout, userData } = useContext(AuthContext);
     const {
         workspaces, loading, error, crearGrupo, invitarMiembro,
-        eliminarGrupo, abandonarGrupo, expulsarMiembro, degradarme
+        eliminarGrupo, abandonarGrupo, expulsarMiembro, degradarme,
+        invitaciones, aceptarInvitacion, rechazarInvitacion
     } = useWorkspaces();
 
     const navigate = useNavigate();
     const [busqueda, setBusqueda] = useState('');
     const [menuAbierto, setMenuAbierto] = useState(false);
     const [filtroActivo, setFiltroActivo] = useState('todos');
+    const [procesandoInvitacion, setProcesandoInvitacion] = useState(null);
 
     // --- Modal Crear Grupo ---
     const [modalCrear, setModalCrear] = useState(false);
@@ -97,6 +99,30 @@ function Menu({ onChatClick, darkMode, onToggleDarkMode, esOculto }) {
         }
     }
 
+    // --- Aceptar / rechazar invitación ---
+    async function handleAceptarInvitacion(inv) {
+        try {
+            setProcesandoInvitacion(inv.workspace_id);
+            await aceptarInvitacion(inv.workspace_id);
+        } catch (e) {
+            alert(e.message);
+        } finally {
+            setProcesandoInvitacion(null);
+        }
+    }
+
+    async function handleRechazarInvitacion(inv) {
+        if (!window.confirm(`¿Rechazar la invitación a "${inv.workspace_nombre}"?`)) return;
+        try {
+            setProcesandoInvitacion(inv.workspace_id);
+            await rechazarInvitacion(inv.workspace_id);
+        } catch (e) {
+            alert(e.message);
+        } finally {
+            setProcesandoInvitacion(null);
+        }
+    }
+
     // Convertir workspace en objeto compatible con Chat
     function abrirChat(ws) {
         onChatClick({
@@ -164,6 +190,52 @@ function Menu({ onChatClick, darkMode, onToggleDarkMode, esOculto }) {
                 <button className={`btn-filter ${filtroActivo === 'todos' ? 'btn-filter--active' : ''}`} onClick={() => setFiltroActivo('todos')}>Todos</button>
                 <button className={`btn-filter ${filtroActivo === 'grupos' ? 'btn-filter--active' : ''}`} onClick={() => setFiltroActivo('grupos')}>Grupos</button>
             </div>
+
+            {/* ---- INVITACIONES PENDIENTES ---- */}
+            {invitaciones.length > 0 && (
+                <div className="chats-list" style={{ borderBottom: '1px solid var(--mid-grey)', paddingBottom: '8px', marginBottom: '8px' }}>
+                    <p style={{ fontSize: '0.8rem', fontWeight: 600, padding: '6px 12px', color: 'var(--mid-green)' }}>
+                        Invitaciones pendientes
+                    </p>
+                    {invitaciones.map(inv => (
+                        <div key={inv.member_id} className="chat-panel_menu">
+                            <div className="chat-panel_image">
+                                <img src="/foto-grupo.jpg" alt={inv.workspace_nombre} />
+                            </div>
+                            <div className="chat-panel_text" style={{ flex: 1 }}>
+                                <div className="chat-panel_superior">
+                                    <h3>{inv.workspace_nombre}</h3>
+                                </div>
+                                <div className="chat-panel_inferior">
+                                    <p>Te invitaron como {inv.member_rol}</p>
+                                </div>
+                            </div>
+                            <div style={{ display: 'flex', gap: '6px', paddingRight: '4px' }}>
+                                <button
+                                    title="Aceptar"
+                                    disabled={procesandoInvitacion === inv.workspace_id}
+                                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--mid-green)' }}
+                                    onClick={() => handleAceptarInvitacion(inv)}
+                                >
+                                    <svg viewBox="0 0 24 24" height="20" width="20" fill="currentColor">
+                                        <path d="M9 16.17 4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" />
+                                    </svg>
+                                </button>
+                                <button
+                                    title="Rechazar"
+                                    disabled={procesandoInvitacion === inv.workspace_id}
+                                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#B80531' }}
+                                    onClick={() => handleRechazarInvitacion(inv)}
+                                >
+                                    <svg viewBox="0 0 24 24" height="20" width="20" fill="currentColor">
+                                        <path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z" />
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            )}
 
             {/* ---- LISTA DE GRUPOS ---- */}
             {loading && <div className="no-results">Cargando grupos...</div>}
