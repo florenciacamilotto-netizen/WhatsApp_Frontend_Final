@@ -411,7 +411,6 @@ const styles = {
         flexDirection: 'column'
     },
     input: {
-        background: 'var(--soft-grey)',
         height: '45px',
         width: '100%',
         padding: '8px 12px',
