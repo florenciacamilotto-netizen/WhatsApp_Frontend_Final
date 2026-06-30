@@ -1,0 +1,116 @@
+.loading-container {
+    align-items: center;
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    justify-content: space-evenly;
+    width: 100%;
+}
+
+.loading-first_section {
+    align-items: center;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+.loading-first_section p {
+    align-items: center;
+    display: flex;
+    font-size: 14px;
+}
+
+.logo-wrapper img {
+    position: relative;
+    width: 130px;
+}
+
+.logo-wrapper {
+    position: relative;
+    display: inline-block;
+}
+
+.logo-wrapper::after {
+    content: "";
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    animation: sweep 2s infinite;
+    background: linear-gradient(90deg,
+            transparent,
+            rgba(255, 255, 255, 0.5),
+            transparent);
+    position: absolute;
+
+    -webkit-mask-image: url('/whatsapp-logo.jpg');
+    mask-image: url('/whatsapp-logo.jpg');
+    -webkit-mask-size: contain;
+    mask-size: contain;
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+}
+@keyframes sweep {
+    0% { left: -100%; }
+    100% { left: 100%; }
+}
+
+.loading-text {
+    text-align: center;
+    margin: 20px 0 10px;
+}
+
+.loading-title {
+    font-size: 18px;
+    font-weight: 500;
+    color: #333;
+}
+
+.loading-chats {
+    font-size: 14px;
+    color: #555;
+    font-weight: 400;
+}
+
+.loading-line {
+    width: 200px;
+    height: 3px;
+    background-color: #e0e0e0;
+    border-radius: 2px;
+    overflow: hidden;
+    margin: 16px 0 10px;
+    position: relative;
+}
+
+.loading-progress-bar {
+    height: 100%;
+    background-color: #25D366;
+    border-radius: 2px;
+    transition: width 0.1s linear;
+}
+
+.loading-percentage {
+    font-size: 12px;
+    color: #888;
+    margin-bottom: 8px;
+}
+
+.loading-second_section {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.btn-log_out {
+    background: none;
+    border: none;
+    color: #555;
+    font-size: 14px;
+    cursor: pointer;
+    padding: 8px 16px;
+    border-radius: 20px;
+}
+
+.btn-log_out:hover {
+    background-color: #f0f0f0;
+}
