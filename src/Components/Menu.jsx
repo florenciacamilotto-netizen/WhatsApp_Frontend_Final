@@ -102,7 +102,7 @@ function Menu({ onChatClick, darkMode, onToggleDarkMode, esOculto }) {
         onChatClick({
             id: ws.workspace_id,
             nombre: ws.workspace_nombre,
-            imagen: '/contacto-3.jpg',
+            imagen: '/contacto-3.png',
             rol: ws.member_rol,
             workspace_id: ws.workspace_id,
             esGrupo: true
@@ -176,7 +176,7 @@ function Menu({ onChatClick, darkMode, onToggleDarkMode, esOculto }) {
                     {workspacesFiltrados.map(ws => (
                         <div key={ws.workspace_id} className="chat-panel_menu">
                             <div className="chat-panel_image" onClick={() => abrirChat(ws)} style={{ cursor: 'pointer' }}>
-                                <img src="/contacto-3.jpg" alt={ws.workspace_nombre} />
+                                <img src="/contacto-3.png" alt={ws.workspace_nombre} />
                             </div>
                             <div className="chat-panel_text" onClick={() => abrirChat(ws)} style={{ cursor: 'pointer', flex: 1 }}>
                                 <div className="chat-panel_superior">
