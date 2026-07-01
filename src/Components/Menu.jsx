@@ -210,7 +210,7 @@ function Menu({ onChatClick, darkMode, onToggleDarkMode, esOculto }) {
                                     <p>Te invitaron como {inv.member_rol}</p>
                                 </div>
                             </div>
-                            <div style={{ display: 'flex', gap: '8px', paddingRight: '4px' }}>
+                            <div style={{ display: 'flex', gap: '10px', paddingRight: '12px' }}>
                                 <button
                                     title="Aceptar"
                                     disabled={procesandoInvitacion === inv.workspace_id}
@@ -219,8 +219,8 @@ function Menu({ onChatClick, darkMode, onToggleDarkMode, esOculto }) {
                                         border: 'none',
                                         cursor: 'pointer',
                                         color: '#fff',
-                                        width: '28px',
-                                        height: '28px',
+                                        width: '36px',
+                                        height: '36px',
                                         borderRadius: '50%',
                                         display: 'flex',
                                         alignItems: 'center',
@@ -229,7 +229,7 @@ function Menu({ onChatClick, darkMode, onToggleDarkMode, esOculto }) {
                                     }}
                                     onClick={() => handleAceptarInvitacion(inv)}
                                 >
-                                    <svg viewBox="0 0 24 24" height="16" width="16" fill="currentColor">
+                                    <svg viewBox="0 0 24 24" height="20" width="20" fill="currentColor">
                                         <path d="M9 16.17 4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" />
                                     </svg>
                                 </button>
@@ -241,8 +241,8 @@ function Menu({ onChatClick, darkMode, onToggleDarkMode, esOculto }) {
                                         border: 'none',
                                         cursor: 'pointer',
                                         color: '#fff',
-                                        width: '28px',
-                                        height: '28px',
+                                        width: '36px',
+                                        height: '36px',
                                         borderRadius: '50%',
                                         display: 'flex',
                                         alignItems: 'center',
@@ -251,7 +251,7 @@ function Menu({ onChatClick, darkMode, onToggleDarkMode, esOculto }) {
                                     }}
                                     onClick={() => handleRechazarInvitacion(inv)}
                                 >
-                                    <svg viewBox="0 0 24 24" height="16" width="16" fill="currentColor">
+                                    <svg viewBox="0 0 24 24" height="20" width="20" fill="currentColor">
                                         <path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z" />
                                     </svg>
                                 </button>
