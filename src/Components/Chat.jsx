@@ -1,13 +1,9 @@
-import React, { useState, useEffect, useContext, useRef } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import EmojiPicker from 'emoji-picker-react';
 import Profile from './Profile';
 import { MEMBER_WORKSPACE_ROLES } from '../constants/memberRoles';
 import { useWorkspaces } from '../context/WorkspacesContext';
 import { AuthContext } from '../context/AuthContext';
-import { getMessages, getNewMessages, sendMessage } from '../services/messageService';
-
-// Cada cuánto se consulta al backend por mensajes nuevos (polling)
-const POLLING_INTERVAL_MS = 3000;
 
 const AddEmoji = ({ onEmojiSelect }) => {
     const [showPicker, setShowPicker] = useState(false);
@@ -41,10 +37,20 @@ function Chat({ chat, onVolver }) {
     const [nuevoMensaje, setNuevoMensaje] = useState('');
     const [listaMensajes, setListaMensajes] = useState([]);
     const [mostrarPerfil, setMostrarPerfil] = useState(false);
-    const { abandonarGrupo, expulsarMiembro, degradarme } = useWorkspaces();
+    const { abandonarGrupo, expulsarMiembro, degradarme, editarGrupo } = useWorkspaces();
     const { userData } = useContext(AuthContext);
-    const ultimaFechaRef = useRef(null);
-    const intervaloRef = useRef(null);
+
+    // Nombre del grupo mostrado en el header (permite reflejar la edición al instante)
+    const [nombreGrupo, setNombreGrupo] = useState(chat?.nombre || '');
+
+    // Menú de opciones (tres puntos) del header
+    const [menuOpcionesAbierto, setMenuOpcionesAbierto] = useState(false);
+
+    // Modal para editar el nombre del grupo
+    const [modalEditarNombre, setModalEditarNombre] = useState(false);
+    const [nombreEditado, setNombreEditado] = useState('');
+    const [guardandoNombre, setGuardandoNombre] = useState(false);
+    const [errorNombre, setErrorNombre] = useState('');
 
     const togglePerfil = () => setMostrarPerfil(prev => !prev);
     const cerrarPerfil = () => setMostrarPerfil(false);
@@ -53,88 +59,64 @@ function Chat({ chat, onVolver }) {
     const puedeEscribir = chat?.rol === MEMBER_WORKSPACE_ROLES.OWNER ||
                           chat?.rol === MEMBER_WORKSPACE_ROLES.ADMIN;
 
-    // Convierte un mensaje del backend al formato que usa el render de la lista
-    function mapearMensaje(msg) {
-        return {
-            id: msg.message_id,
-            texto: msg.message_contenido,
-            hora: new Date(msg.message_fecha_creacion).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-            tipo: msg.user_id === userData?.id ? 'sent' : 'received',
-            fecha_creacion: msg.message_fecha_creacion
-        };
-    }
-
-    // Consulta al backend por mensajes posteriores al último que ya tenemos
-    async function buscarMensajesNuevos() {
-        if (!chat || !ultimaFechaRef.current) return;
-        try {
-            const res = await getNewMessages(chat.workspace_id, ultimaFechaRef.current);
-            const nuevos = res?.data?.messages || [];
-            if (nuevos.length > 0) {
-                setListaMensajes(prev => [...prev, ...nuevos.map(mapearMensaje)]);
-                ultimaFechaRef.current = nuevos[nuevos.length - 1].message_fecha_creacion;
-            }
-        } catch (e) {
-            console.error('Error al buscar mensajes nuevos:', e.message);
-        }
-    }
+    // Solo el Dueño puede editar el nombre del grupo
+    const esDueño = chat?.rol === MEMBER_WORKSPACE_ROLES.OWNER;
 
     useEffect(() => {
-        // Limpiar el polling anterior al cambiar de chat
-        if (intervaloRef.current) clearInterval(intervaloRef.current);
-        ultimaFechaRef.current = null;
-
-        if (!chat) {
+        if (chat) {
             setListaMensajes([]);
+            setMostrarPerfil(false);
+            setNombreGrupo(chat?.nombre || '');
+            setMenuOpcionesAbierto(false);
+        }
+    }, [chat]);
+
+    function abrirModalEditarNombre() {
+        setNombreEditado(nombreGrupo);
+        setErrorNombre('');
+        setModalEditarNombre(true);
+        setMenuOpcionesAbierto(false);
+    }
+
+    function cerrarModalEditarNombre() {
+        setModalEditarNombre(false);
+        setErrorNombre('');
+    }
+
+    async function handleGuardarNombre() {
+        const nombreLimpio = nombreEditado.trim();
+        if (!nombreLimpio) {
+            setErrorNombre('El nombre del grupo no puede estar vacío.');
             return;
         }
-
-        setMostrarPerfil(false);
-
-        async function cargarHistorial() {
-            try {
-                const res = await getMessages(chat.workspace_id);
-                const mensajes = res?.data?.messages || [];
-                setListaMensajes(mensajes.map(mapearMensaje));
-                ultimaFechaRef.current = mensajes.length > 0
-                    ? mensajes[mensajes.length - 1].message_fecha_creacion
-                    : new Date().toISOString();
-            } catch (e) {
-                console.error('Error al cargar los mensajes:', e.message);
-                setListaMensajes([]);
-                ultimaFechaRef.current = new Date().toISOString();
-            }
+        try {
+            setGuardandoNombre(true);
+            setErrorNombre('');
+            await editarGrupo(chat.workspace_id, nombreLimpio, chat?.descripcion);
+            setNombreGrupo(nombreLimpio);
+            setModalEditarNombre(false);
+        } catch (e) {
+            setErrorNombre(e.message);
+        } finally {
+            setGuardandoNombre(false);
         }
-
-        cargarHistorial().then(() => {
-            intervaloRef.current = setInterval(buscarMensajesNuevos, POLLING_INTERVAL_MS);
-        });
-
-        return () => {
-            if (intervaloRef.current) clearInterval(intervaloRef.current);
-        };
-    }, [chat]);
+    }
 
     const handleEmojiSelect = (emoji) => {
         setNuevoMensaje(prev => prev + emoji);
     };
 
-    const enviarMensaje = async () => {
+    const enviarMensaje = () => {
         if (!puedeEscribir) return;
         if (nuevoMensaje.trim() === '') return;
-        const texto = nuevoMensaje;
+        const mensajeNuevo = {
+            id: Date.now(),
+            texto: nuevoMensaje,
+            hora: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            tipo: 'sent'
+        };
+        setListaMensajes([...listaMensajes, mensajeNuevo]);
         setNuevoMensaje('');
-        try {
-            const res = await sendMessage(chat.workspace_id, texto);
-            const mensajeCreado = res?.data?.message;
-            if (mensajeCreado) {
-                setListaMensajes(prev => [...prev, mapearMensaje(mensajeCreado)]);
-                ultimaFechaRef.current = mensajeCreado.message_fecha_creacion;
-            }
-        } catch (e) {
-            alert(e.message);
-            setNuevoMensaje(texto);
-        }
     };
 
     const manejarEnter = (e) => {
@@ -173,12 +155,12 @@ function Chat({ chat, onVolver }) {
                     </button>
 
                     <div className="chat-header_image" onClick={togglePerfil} style={{ cursor: 'pointer' }}>
-                        <img src={chat?.imagen || '/foto-grupo.jpg'} alt={chat?.nombre}
+                        <img src={chat?.imagen || '/foto-grupo.jpg'} alt={nombreGrupo}
                             style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '100%' }} />
                     </div>
 
                     <div className="chat-header_info" onClick={togglePerfil} style={{ cursor: 'pointer', flex: 1 }}>
-                        <h4>{chat?.nombre || 'Grupo'}</h4>
+                        <h4>{nombreGrupo || 'Grupo'}</h4>
                         <div className="chat-header_subtitle">
                             <span>
                                 {chat?.rol === MEMBER_WORKSPACE_ROLES.OWNER && 'Sos el Dueño · '}
@@ -210,11 +192,25 @@ function Chat({ chat, onVolver }) {
                                 <path d="M9.5 16C7.68333 16 6.14583 15.3708 4.8875 14.1125C3.62917 12.8542 3 11.3167 3 9.5C3 7.68333 3.62917 6.14583 4.8875 4.8875C6.14583 3.62917 7.68333 3 9.5 3C11.3167 3 12.8542 3.62917 14.1125 4.8875C15.3708 6.14583 16 7.68333 16 9.5C16 10.2333 15.8833 10.925 15.65 11.575C15.4167 12.225 15.1 12.8 14.7 13.3L20.3 18.9C20.4833 19.0833 20.575 19.3167 20.575 19.6C20.575 19.8833 20.4833 20.1167 20.3 20.3C20.1167 20.4833 19.8833 20.575 19.6 20.575C19.3167 20.575 19.0833 20.4833 18.9 20.3L13.3 14.7C12.8 15.1 12.225 15.4167 11.575 15.65C10.925 15.8833 10.2333 16 9.5 16ZM9.5 14C10.75 14 11.8125 13.5625 12.6875 12.6875C13.5625 11.8125 14 10.75 14 9.5C14 8.25 13.5625 7.1875 12.6875 6.3125C11.8125 5.4375 10.75 5 9.5 5C8.25 5 7.1875 5.4375 6.3125 6.3125C5.4375 7.1875 5 8.25 5 9.5C5 10.75 5.4375 11.8125 6.3125 12.6875C7.1875 13.5625 8.25 14 9.5 14Z" fill="currentColor"></path>
                             </svg>
                         </button>
-                        <button>
-                            <svg viewBox="0 0 24 24" height="24" width="24" preserveAspectRatio="xMidYMid meet" fill="none">
-                                <path d="M12 20C11.45 20 10.9792 19.8042 10.5875 19.4125C10.1958 19.0208 10 18.55 10 18C10 17.45 10.1958 16.9792 10.5875 16.5875C10.9792 16.1958 11.45 16 12 16C12.55 16 13.0208 16.1958 13.4125 16.5875C13.8042 16.9792 14 17.45 14 18C14 18.55 13.8042 19.0208 13.4125 19.4125C13.0208 19.8042 12.55 20 12 20ZM12 14C11.45 14 10.9792 13.8042 10.5875 13.4125C10.1958 13.0208 10 12.55 10 12C10 11.45 10.1958 10.9792 10.5875 10.5875C10.9792 10.1958 11.45 10 12 10C12.55 10 13.0208 10.1958 13.4125 10.5875C13.8042 10.9792 14 11.45 14 12C14 12.55 13.8042 13.0208 13.4125 13.4125C13.0208 13.8042 12.55 14 12 14ZM12 8C11.45 8 10.9792 7.80417 10.5875 7.4125C10.1958 7.02083 10 6.55 10 6C10 5.45 10.1958 4.97917 10.5875 4.5875C10.9792 4.19583 11.45 4 12 4C12.55 4 13.0208 4.19583 13.4125 4.5875C13.8042 4.97917 14 5.45 14 6C14 6.55 13.8042 7.02083 13.4125 7.4125C13.0208 7.80417 12.55 8 12 8Z" fill="currentColor"></path>
-                            </svg>
-                        </button>
+                        <div className="dropdown-wrapper">
+                            <button className="icon-btn" title="Más opciones" onClick={() => setMenuOpcionesAbierto(prev => !prev)}>
+                                <svg viewBox="0 0 24 24" height="24" width="24" preserveAspectRatio="xMidYMid meet" fill="none">
+                                    <path d="M12 20C11.45 20 10.9792 19.8042 10.5875 19.4125C10.1958 19.0208 10 18.55 10 18C10 17.45 10.1958 16.9792 10.5875 16.5875C10.9792 16.1958 11.45 16 12 16C12.55 16 13.0208 16.1958 13.4125 16.5875C13.8042 16.9792 14 17.45 14 18C14 18.55 13.8042 19.0208 13.4125 19.4125C13.0208 19.8042 12.55 20 12 20ZM12 14C11.45 14 10.9792 13.8042 10.5875 13.4125C10.1958 13.0208 10 12.55 10 12C10 11.45 10.1958 10.9792 10.5875 10.5875C10.9792 10.1958 11.45 10 12 10C12.55 10 13.0208 10.1958 13.4125 10.5875C13.8042 10.9792 14 11.45 14 12C14 12.55 13.8042 13.0208 13.4125 13.4125C13.0208 13.8042 12.55 14 12 14ZM12 8C11.45 8 10.9792 7.80417 10.5875 7.4125C10.1958 7.02083 10 6.55 10 6C10 5.45 10.1958 4.97917 10.5875 4.5875C10.9792 4.19583 11.45 4 12 4C12.55 4 13.0208 4.19583 13.4125 4.5875C13.8042 4.97917 14 5.45 14 6C14 6.55 13.8042 7.02083 13.4125 7.4125C13.0208 7.80417 12.55 8 12 8Z" fill="currentColor"></path>
+                                </svg>
+                            </button>
+                            {menuOpcionesAbierto && (
+                                <div className="dropdown-menu">
+                                    {esDueño && (
+                                        <div className="dropdown-item" onClick={abrirModalEditarNombre}>
+                                            Editar nombre del grupo
+                                        </div>
+                                    )}
+                                    <div className="dropdown-item" onClick={() => { togglePerfil(); setMenuOpcionesAbierto(false); }}>
+                                        Ver info. del grupo
+                                    </div>
+                                </div>
+                            )}
+                        </div>
                     </div>
                 </div>
 
@@ -304,10 +300,96 @@ function Chat({ chat, onVolver }) {
             </div>
 
             {mostrarPerfil && (
-                <Profile onCerrar={cerrarPerfil} chat={chat} />
+                <Profile onCerrar={cerrarPerfil} chat={{ ...chat, nombre: nombreGrupo }} onVolver={onVolver} />
+            )}
+
+            {modalEditarNombre && (
+                <div style={editarNombreStyles.overlay} onClick={cerrarModalEditarNombre}>
+                    <div style={editarNombreStyles.modal} onClick={(e) => e.stopPropagation()}>
+                        <h3 style={{ marginBottom: '17px' }}>Editar nombre del grupo</h3>
+                        <input
+                            style={editarNombreStyles.input}
+                            type="text"
+                            placeholder="Nombre del grupo"
+                            value={nombreEditado}
+                            onChange={(e) => setNombreEditado(e.target.value)}
+                            autoFocus
+                        />
+                        {errorNombre && <p style={{ color: '#B80531', fontSize: '0.85rem', margin: '8px 0' }}>{errorNombre}</p>}
+                        <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
+                            <button
+                                style={editarNombreStyles.btnSecondary}
+                                onClick={cerrarModalEditarNombre}
+                                disabled={guardandoNombre}
+                            >
+                                Cancelar
+                            </button>
+                            <button
+                                style={editarNombreStyles.btnPrimary}
+                                onClick={handleGuardarNombre}
+                                disabled={guardandoNombre}
+                            >
+                                {guardandoNombre ? 'Guardando...' : 'Guardar'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
             )}
         </div>
     );
 }
+
+const editarNombreStyles = {
+    overlay: {
+        position: 'fixed', inset: 0,
+        background: 'rgba(0,0,0,0.5)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        zIndex: 9999
+    },
+    modal: {
+        background: 'var(--panel-background, #fff)',
+        borderRadius: '30px',
+        width: '350px',
+        padding: '31px',
+        maxWidth: '90vw',
+        boxShadow: '0 8px 32px rgba(0,0,0,0.25)',
+        display: 'flex',
+        flexDirection: 'column'
+    },
+    input: {
+        height: '45px',
+        width: '100%',
+        padding: '8px 12px',
+        borderRadius: '50px',
+        border: 'var(--soft-grey)',
+        marginBottom: '4px',
+        fontSize: '0.9rem',
+        boxSizing: 'border-box',
+        background: 'var(--input-background, #f0f0f0)'
+    },
+    btnPrimary: {
+        flex: 1,
+        padding: '15px 18px',
+        background: 'var(--light-green)',
+        color: '#000',
+        border: '1.1px solid var(--light-green)',
+        borderRadius: '30px',
+        cursor: 'pointer',
+        fontWeight: 600,
+        boxSizing: 'border-box'
+    },
+    btnSecondary: {
+        flex: 1,
+        padding: '15px 18px',
+        background: 'transparent',
+        border: '1.1px solid var(--mid-grey)',
+        borderRadius: '30px',
+        cursor: 'pointer',
+        fontWeight: 600,
+        boxSizing: 'border-box'
+    }
+};
 
 export default Chat;
