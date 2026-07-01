@@ -111,8 +111,6 @@ function Profile({ onCerrar, chat }) {
                     </div>
                 </div>
             </div>
-
-            {/* ===== MODAL INVITAR MIEMBROS ===== */}
             {modalInvitar && (
                 <div style={modalStyles.overlay}>
                     <div style={modalStyles.modal}>

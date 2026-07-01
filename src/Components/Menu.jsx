@@ -212,7 +212,7 @@ function Menu({ onChatClick, darkMode, onToggleDarkMode, esOculto }) {
                             <div className="chat-panel_text" onClick={() => abrirChat(ws)} style={{ cursor: 'pointer', flex: 1 }}>
                                 <div className="chat-panel_superior">
                                     <h3>{ws.workspace_nombre}</h3>
-                                    <h5 style={{ fontSize: '0.7rem', color: 'var(--mid-green)', fontWeight: 600 }}>
+                                    <h5 style={{ fontSize: '0.7rem', color: 'var(--mid-green)', fontWeight: 600, marginRight: '10px' }}>
                                         {ws.member_rol}
                                     </h5>
                                 </div>
