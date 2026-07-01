@@ -73,7 +73,7 @@ function Profile({ onCerrar, chat }) {
             {/* ---- MIEMBROS DEL GRUPO (usuarios que aceptaron la invitación) ---- */}
             <div className="profile-settings">
                 <div className="profile-settings_list" style={{ display: 'block' }}>
-                    <h3 style={{ marginBottom: '10px' }}>Miembros del grupo</h3>
+                    <h3 style={{ marginBottom: '50px' }}>Miembros del grupo</h3>
 
                     {cargandoMiembros && <p style={{ fontSize: '0.85rem', color: '#888' }}>Cargando miembros...</p>}
 
@@ -82,7 +82,7 @@ function Profile({ onCerrar, chat }) {
                     )}
 
                     {!cargandoMiembros && miembros.map(m => (
-                        <div key={m.member_id} style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '30px', padding: '6px 0'}}>
+                        <div key={m.member_id} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '6px 0' }}>
                             <img src="/foto-perfil.png" alt={m.user_nombre}
                                 style={{ width: '36px', height: '36px', borderRadius: '50%', objectFit: 'cover' }} />
                             <div>
