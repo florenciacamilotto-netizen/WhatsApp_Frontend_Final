@@ -37,7 +37,7 @@ function Chat({ chat, onVolver }) {
     const [nuevoMensaje, setNuevoMensaje] = useState('');
     const [listaMensajes, setListaMensajes] = useState([]);
     const [mostrarPerfil, setMostrarPerfil] = useState(false);
-    const { abandonarGrupo, expulsarMiembro, degradarme } = useWorkspaces();
+    const { abandonarGrupo, eliminarGrupo, expulsarMiembro, degradarme } = useWorkspaces();
     const { userData } = useContext(AuthContext);
 
     const togglePerfil = () => setMostrarPerfil(prev => !prev);
@@ -75,10 +75,18 @@ function Chat({ chat, onVolver }) {
         if (e.key === 'Enter') enviarMensaje();
     };
 
-    async function handleAbandonar() {
-        if (!window.confirm('¿Querés abandonar este grupo?')) return;
+    async function handleEliminarChat() {
+        const esDueño = chat?.rol === MEMBER_WORKSPACE_ROLES.OWNER;
+        const mensaje = esDueño
+            ? '¿Seguro que querés eliminar este grupo? Esta acción no se puede deshacer.'
+            : '¿Querés abandonar este grupo?';
+        if (!window.confirm(mensaje)) return;
         try {
-            await abandonarGrupo(chat.workspace_id);
+            if (esDueño) {
+                await eliminarGrupo(chat.workspace_id);
+            } else {
+                await abandonarGrupo(chat.workspace_id);
+            }
             onVolver();
         } catch (e) {
             alert(e.message);
@@ -129,14 +137,6 @@ function Chat({ chat, onVolver }) {
                             <button title="Dejar de ser Admin" onClick={handleDegradarse}
                                 style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#888', fontSize: '0.75rem', padding: '4px 8px' }}>
                                 Renunciar a Admin
-                            </button>
-                        )}
-                        {(chat?.rol === MEMBER_WORKSPACE_ROLES.ADMIN || chat?.rol === MEMBER_WORKSPACE_ROLES.USER) && (
-                            <button title="Abandonar grupo" onClick={handleAbandonar}
-                                style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#B80531' }}>
-                                <svg viewBox="0 0 24 24" height="20" width="20" fill="currentColor">
-                                    <path d="M13 3h-2v10h2V3zm4.83 2.17l-1.42 1.42C17.99 7.86 19 9.81 19 12c0 3.87-3.13 7-7 7s-7-3.13-7-7c0-2.19 1.01-4.14 2.58-5.42L6.17 5.17C4.23 6.82 3 9.26 3 12c0 4.97 4.03 9 9 9s9-4.03 9-9c0-2.74-1.23-5.18-3.17-6.83z" />
-                                </svg>
                             </button>
                         )}
                         <button>
@@ -238,7 +238,7 @@ function Chat({ chat, onVolver }) {
             </div>
 
             {mostrarPerfil && (
-                <Profile onCerrar={cerrarPerfil} chat={chat} />
+                <Profile onCerrar={cerrarPerfil} chat={chat} onEliminarChat={handleEliminarChat} />
             )}
         </div>
     );

@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react'
 import { getWorkspaceMembers } from '../services/workspaceService'
+import { MEMBER_WORKSPACE_ROLES } from '../constants/memberRoles'
 
-function Profile({ onCerrar, chat }) {
+function Profile({ onCerrar, chat, onEliminarChat }) {
     const [miembros, setMiembros] = useState([]);
     const [cargandoMiembros, setCargandoMiembros] = useState(false);
 
@@ -171,10 +172,16 @@ function Profile({ onCerrar, chat }) {
                         <h3 style={{ color: "#B80531" }}>Reportar a</h3>
                     </div>
                 </div>
-                <div className="profile-settings_list">
+                <div
+                    className="profile-settings_list"
+                    onClick={onEliminarChat}
+                    style={{ cursor: onEliminarChat ? 'pointer' : 'default' }}
+                >
                     <svg style={{ color: "#B80531" }} viewBox="0 0 24 24" height="24" width="24" preserveAspectRatio="xMidYMid meet" fill="none"><title>delete-refreshed</title><path d="M7 21C6.45 21 5.97917 20.8042 5.5875 20.4125C5.19583 20.0208 5 19.55 5 19V6C4.44772 6 4 5.55228 4 5C4 4.44772 4.44772 4 5 4H9V3.5C9 3.22386 9.22386 3 9.5 3H14.5C14.7761 3 15 3.22386 15 3.5V4H19C19.5523 4 20 4.44772 20 5C20 5.55228 19.5523 6 19 6V19C19 19.55 18.8042 20.0208 18.4125 20.4125C18.0208 20.8042 17.55 21 17 21H7ZM17 6H7V19H17V6ZM9 16.5C9 16.7761 9.22386 17 9.5 17H10.5C10.7761 17 11 16.7761 11 16.5V8.5C11 8.22386 10.7761 8 10.5 8H9.5C9.22386 8 9 8.22386 9 8.5V16.5ZM13 16.5C13 16.7761 13.2239 17 13.5 17H14.5C14.7761 17 15 16.7761 15 16.5V8.5C15 8.22386 14.7761 8 14.5 8H13.5C13.2239 8 13 8.22386 13 8.5V16.5Z" fill="currentColor"></path></svg>
                     <div className="profile-settings_list-text">
-                        <h3 style={{ color: "#B80531" }}>Eliminar chat</h3>
+                        <h3 style={{ color: "#B80531" }}>
+                            {chat?.rol === MEMBER_WORKSPACE_ROLES.OWNER ? 'Eliminar grupo' : 'Eliminar chat'}
+                        </h3>
                     </div>
                 </div>
             </div>
