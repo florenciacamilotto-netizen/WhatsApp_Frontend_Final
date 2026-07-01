@@ -8,7 +8,6 @@ function Menu({ onChatClick, darkMode, onToggleDarkMode, esOculto }) {
     const { logout, userData } = useContext(AuthContext);
     const {
         workspaces, loading, error, crearGrupo, invitarMiembro,
-        eliminarGrupo, abandonarGrupo, expulsarMiembro, degradarme,
         invitaciones, aceptarInvitacion, rechazarInvitacion
     } = useWorkspaces();
 
@@ -25,15 +24,6 @@ function Menu({ onChatClick, darkMode, onToggleDarkMode, esOculto }) {
     const [emailsInvitados, setEmailsInvitados] = useState(['', '']);
     const [creando, setCreando] = useState(false);
     const [errorCrear, setErrorCrear] = useState('');
-
-    // --- Modal Invitar ---
-    const [modalInvitar, setModalInvitar] = useState(false);
-    const [workspaceSeleccionado, setWorkspaceSeleccionado] = useState(null);
-    const [emailInvitar, setEmailInvitar] = useState('');
-    const [rolInvitar, setRolInvitar] = useState(MEMBER_WORKSPACE_ROLES.USER);
-    const [invitando, setInvitando] = useState(false);
-    const [errorInvitar, setErrorInvitar] = useState('');
-    const [successInvitar, setSuccessInvitar] = useState('');
 
     // --- Filtros ---
     const workspacesFiltrados = workspaces.filter(ws => {
@@ -65,37 +55,6 @@ function Menu({ onChatClick, darkMode, onToggleDarkMode, esOculto }) {
             setErrorCrear(e.message);
         } finally {
             setCreando(false);
-        }
-    }
-
-    // --- Invitar al grupo ---
-    async function handleInvitar() {
-        setErrorInvitar('');
-        setSuccessInvitar('');
-        if (!emailInvitar.trim()) return setErrorInvitar('Ingresá un email.');
-        try {
-            setInvitando(true);
-            await invitarMiembro(workspaceSeleccionado.workspace_id, emailInvitar.trim(), rolInvitar);
-            setSuccessInvitar('Invitación enviada con éxito.');
-            setEmailInvitar('');
-        } catch (e) {
-            setErrorInvitar(e.message);
-        } finally {
-            setInvitando(false);
-        }
-    }
-
-    // --- Abandonar / eliminar grupo ---
-    async function handleAbandonar(ws) {
-        if (!window.confirm('¿Seguro que querés abandonar este grupo?')) return;
-        try {
-            if (ws.member_rol === MEMBER_WORKSPACE_ROLES.OWNER) {
-                await eliminarGrupo(ws.workspace_id);
-            } else {
-                await abandonarGrupo(ws.workspace_id);
-            }
-        } catch (e) {
-            alert(e.message);
         }
     }
 
@@ -210,23 +169,11 @@ function Menu({ onChatClick, darkMode, onToggleDarkMode, esOculto }) {
                                     <p>Te invitaron como {inv.member_rol}</p>
                                 </div>
                             </div>
-                            <div style={{ display: 'flex', gap: '10px', paddingRight: '12px' }}>
+                            <div style={{ display: 'flex', gap: '6px', paddingRight: '4px' }}>
                                 <button
                                     title="Aceptar"
                                     disabled={procesandoInvitacion === inv.workspace_id}
-                                    style={{
-                                        background: 'var(--mid-green)',
-                                        border: 'none',
-                                        cursor: 'pointer',
-                                        color: '#fff',
-                                        width: '36px',
-                                        height: '36px',
-                                        borderRadius: '50%',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'center',
-                                        flexShrink: 0
-                                    }}
+                                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--mid-green)' }}
                                     onClick={() => handleAceptarInvitacion(inv)}
                                 >
                                     <svg viewBox="0 0 24 24" height="20" width="20" fill="currentColor">
@@ -236,19 +183,7 @@ function Menu({ onChatClick, darkMode, onToggleDarkMode, esOculto }) {
                                 <button
                                     title="Rechazar"
                                     disabled={procesandoInvitacion === inv.workspace_id}
-                                    style={{
-                                        background: '#B80531',
-                                        border: 'none',
-                                        cursor: 'pointer',
-                                        color: '#fff',
-                                        width: '36px',
-                                        height: '36px',
-                                        borderRadius: '50%',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'center',
-                                        flexShrink: 0
-                                    }}
+                                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#B80531' }}
                                     onClick={() => handleRechazarInvitacion(inv)}
                                 >
                                     <svg viewBox="0 0 24 24" height="20" width="20" fill="currentColor">
@@ -284,30 +219,6 @@ function Menu({ onChatClick, darkMode, onToggleDarkMode, esOculto }) {
                                 <div className="chat-panel_inferior">
                                     <p>{ws.workspace_descripcion || 'Sin descripción'}</p>
                                 </div>
-                            </div>
-
-                            {/* Acciones contextuales según rol */}
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', paddingRight: '4px' }}>
-                                {ws.member_rol === MEMBER_WORKSPACE_ROLES.OWNER && (
-                                    <button
-                                        title="Invitar al grupo"
-                                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--mid-green)' }}
-                                        onClick={() => { setWorkspaceSeleccionado(ws); setModalInvitar(true); }}
-                                    >
-                                        <svg viewBox="0 0 24 24" height="18" width="18" fill="currentColor">
-                                            <path d="M15 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm-9-2V7H4v3H1v2h3v3h2v-3h3v-2H6zm9 4c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
-                                        </svg>
-                                    </button>
-                                )}
-                                <button
-                                    title={ws.member_rol === MEMBER_WORKSPACE_ROLES.OWNER ? 'Eliminar grupo' : 'Abandonar grupo'}
-                                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#B80531' }}
-                                    onClick={() => handleAbandonar(ws)}
-                                >
-                                    <svg viewBox="0 0 24 24" height="18" width="18" fill="currentColor">
-                                        <path d="M13 3h-2v10h2V3zm4.83 2.17l-1.42 1.42C17.99 7.86 19 9.81 19 12c0 3.87-3.13 7-7 7s-7-3.13-7-7c0-2.19 1.01-4.14 2.58-5.42L6.17 5.17C4.23 6.82 3 9.26 3 12c0 4.97 4.03 9 9 9s9-4.03 9-9c0-2.74-1.23-5.18-3.17-6.83z" />
-                                    </svg>
-                                </button>
                             </div>
                         </div>
                     ))}
@@ -376,41 +287,6 @@ function Menu({ onChatClick, darkMode, onToggleDarkMode, esOculto }) {
                 </div>
             )}
 
-            {/* ===== MODAL INVITAR ===== */}
-            {modalInvitar && workspaceSeleccionado && (
-                <div style={styles.overlay}>
-                    <div style={styles.modal}>
-                        <h3 style={{ marginBottom: '12px' }}>Invitar a "{workspaceSeleccionado.workspace_nombre}"</h3>
-                        <input
-                            style={styles.input}
-                            type="email"
-                            placeholder="Email del usuario a invitar"
-                            value={emailInvitar}
-                            onChange={e => setEmailInvitar(e.target.value)}
-                        />
-                        <select
-                            style={styles.input}
-                            value={rolInvitar}
-                            onChange={e => setRolInvitar(e.target.value)}
-                        >
-                            <option value={MEMBER_WORKSPACE_ROLES.USER}>Usuario</option>
-                            <option value={MEMBER_WORKSPACE_ROLES.ADMIN}>Admin</option>
-                        </select>
-
-                        {errorInvitar && <p style={{ color: '#B80531', fontSize: '0.85rem', margin: '8px 0' }}>{errorInvitar}</p>}
-                        {successInvitar && <p style={{ color: 'var(--mid-green)', fontSize: '0.85rem', margin: '8px 0' }}>{successInvitar}</p>}
-
-                        <div style={{ display: 'flex', gap: '8px', marginTop: '14px' }}>
-                            <button style={styles.btnPrimary} onClick={handleInvitar} disabled={invitando}>
-                                {invitando ? 'Enviando...' : 'Invitar'}
-                            </button>
-                            <button style={styles.btnSecondary} onClick={() => { setModalInvitar(false); setErrorInvitar(''); setSuccessInvitar(''); }}>
-                                Cerrar
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
         </div>
     );
 }

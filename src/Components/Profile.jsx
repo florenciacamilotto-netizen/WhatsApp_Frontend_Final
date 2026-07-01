@@ -1,10 +1,45 @@
 import React, { useEffect, useState } from 'react'
 import { getWorkspaceMembers } from '../services/workspaceService'
+import { useWorkspaces } from '../context/WorkspacesContext'
 import { MEMBER_WORKSPACE_ROLES } from '../constants/memberRoles'
 
-function Profile({ onCerrar, chat, onEliminarChat }) {
+function Profile({ onCerrar, chat }) {
+    const { invitarMiembro } = useWorkspaces();
     const [miembros, setMiembros] = useState([]);
     const [cargandoMiembros, setCargandoMiembros] = useState(false);
+
+    // --- Invitar miembros ---
+    const [modalInvitar, setModalInvitar] = useState(false);
+    const [emailInvitar, setEmailInvitar] = useState('');
+    const [rolInvitar, setRolInvitar] = useState(MEMBER_WORKSPACE_ROLES.USER);
+    const [invitando, setInvitando] = useState(false);
+    const [errorInvitar, setErrorInvitar] = useState('');
+    const [successInvitar, setSuccessInvitar] = useState('');
+
+    const puedeInvitar = chat?.rol === MEMBER_WORKSPACE_ROLES.OWNER;
+
+    function cerrarModalInvitar() {
+        setModalInvitar(false);
+        setEmailInvitar('');
+        setErrorInvitar('');
+        setSuccessInvitar('');
+    }
+
+    async function handleInvitar() {
+        setErrorInvitar('');
+        setSuccessInvitar('');
+        if (!emailInvitar.trim()) return setErrorInvitar('Ingresá un email.');
+        try {
+            setInvitando(true);
+            await invitarMiembro(chat.workspace_id, emailInvitar.trim(), rolInvitar);
+            setSuccessInvitar('Invitación enviada con éxito.');
+            setEmailInvitar('');
+        } catch (e) {
+            setErrorInvitar(e.message);
+        } finally {
+            setInvitando(false);
+        }
+    }
 
     useEffect(() => {
         if (!chat?.workspace_id) return;
@@ -60,13 +95,58 @@ function Profile({ onCerrar, chat, onEliminarChat }) {
                 <div className="profile-info">
                     <h2>{chat?.nombre || "Nombre"}</h2>
                     <span>{miembros.length} {miembros.length === 1 ? 'miembro' : 'miembros'}</span>
-                    <button className="btn-buscador">
-                        {/* Ícono Buscador */}
-                        <span aria-hidden="true" class="x1v5yvga xxk0z11 xvy4d1p"><svg viewBox="0 0 24 24" height="24" width="24" preserveAspectRatio="xMidYMid meet" class="" fill="none"><title>ic-search</title><path d="M9.5 16C7.68333 16 6.14583 15.3708 4.8875 14.1125C3.62917 12.8542 3 11.3167 3 9.5C3 7.68333 3.62917 6.14583 4.8875 4.8875C6.14583 3.62917 7.68333 3 9.5 3C11.3167 3 12.8542 3.62917 14.1125 4.8875C15.3708 6.14583 16 7.68333 16 9.5C16 10.2333 15.8833 10.925 15.65 11.575C15.4167 12.225 15.1 12.8 14.7 13.3L20.3 18.9C20.4833 19.0833 20.575 19.3167 20.575 19.6C20.575 19.8833 20.4833 20.1167 20.3 20.3C20.1167 20.4833 19.8833 20.575 19.6 20.575C19.3167 20.575 19.0833 20.4833 18.9 20.3L13.3 14.7C12.8 15.1 12.225 15.4167 11.575 15.65C10.925 15.8833 10.2333 16 9.5 16ZM9.5 14C10.75 14 11.8125 13.5625 12.6875 12.6875C13.5625 11.8125 14 10.75 14 9.5C14 8.25 13.5625 7.1875 12.6875 6.3125C11.8125 5.4375 10.75 5 9.5 5C8.25 5 7.1875 5.4375 6.3125 6.3125C5.4375 7.1875 5 8.25 5 9.5C5 10.75 5.4375 11.8125 6.3125 12.6875C7.1875 13.5625 8.25 14 9.5 14Z" fill="currentColor"></path></svg></span>
-                        <span>Busca</span>
-                    </button>
+                    <div className="profile-buttons-row">
+                        <button className="btn-buscador">
+                            {/* Ícono Buscador */}
+                            <span aria-hidden="true" class="x1v5yvga xxk0z11 xvy4d1p"><svg viewBox="0 0 24 24" height="24" width="24" preserveAspectRatio="xMidYMid meet" class="" fill="none"><title>ic-search</title><path d="M9.5 16C7.68333 16 6.14583 15.3708 4.8875 14.1125C3.62917 12.8542 3 11.3167 3 9.5C3 7.68333 3.62917 6.14583 4.8875 4.8875C6.14583 3.62917 7.68333 3 9.5 3C11.3167 3 12.8542 3.62917 14.1125 4.8875C15.3708 6.14583 16 7.68333 16 9.5C16 10.2333 15.8833 10.925 15.65 11.575C15.4167 12.225 15.1 12.8 14.7 13.3L20.3 18.9C20.4833 19.0833 20.575 19.3167 20.575 19.6C20.575 19.8833 20.4833 20.1167 20.3 20.3C20.1167 20.4833 19.8833 20.575 19.6 20.575C19.3167 20.575 19.0833 20.4833 18.9 20.3L13.3 14.7C12.8 15.1 12.225 15.4167 11.575 15.65C10.925 15.8833 10.2333 16 9.5 16ZM9.5 14C10.75 14 11.8125 13.5625 12.6875 12.6875C13.5625 11.8125 14 10.75 14 9.5C14 8.25 13.5625 7.1875 12.6875 6.3125C11.8125 5.4375 10.75 5 9.5 5C8.25 5 7.1875 5.4375 6.3125 6.3125C5.4375 7.1875 5 8.25 5 9.5C5 10.75 5.4375 11.8125 6.3125 12.6875C7.1875 13.5625 8.25 14 9.5 14Z" fill="currentColor"></path></svg></span>
+                            <span>Busca</span>
+                        </button>
+                        {puedeInvitar && (
+                            <button className="btn-buscador" onClick={() => setModalInvitar(true)}>
+                                {/* Ícono Invitar */}
+                                <span aria-hidden="true"><svg viewBox="0 0 24 24" height="24" width="24" preserveAspectRatio="xMidYMid meet" fill="none"><title>ic-invitar</title><path d="M15 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm-9-2V7H4v3H1v2h3v3h2v-3h3v-2H6zm9 4c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" fill="currentColor"></path></svg></span>
+                                <span>Invitar</span>
+                            </button>
+                        )}
+                    </div>
                 </div>
             </div>
+
+            {/* ===== MODAL INVITAR MIEMBROS ===== */}
+            {modalInvitar && (
+                <div style={modalStyles.overlay}>
+                    <div style={modalStyles.modal}>
+                        <h3 style={{ marginBottom: '12px' }}>Invitar a "{chat?.nombre}"</h3>
+                        <input
+                            style={modalStyles.input}
+                            type="email"
+                            placeholder="Email del usuario a invitar"
+                            value={emailInvitar}
+                            onChange={e => setEmailInvitar(e.target.value)}
+                        />
+                        <select
+                            style={modalStyles.input}
+                            value={rolInvitar}
+                            onChange={e => setRolInvitar(e.target.value)}
+                        >
+                            <option value={MEMBER_WORKSPACE_ROLES.USER}>Usuario</option>
+                            <option value={MEMBER_WORKSPACE_ROLES.ADMIN}>Admin</option>
+                        </select>
+
+                        {errorInvitar && <p style={{ color: '#B80531', fontSize: '0.85rem', margin: '8px 0' }}>{errorInvitar}</p>}
+                        {successInvitar && <p style={{ color: 'var(--mid-green)', fontSize: '0.85rem', margin: '8px 0' }}>{successInvitar}</p>}
+
+                        <div style={{ display: 'flex', gap: '8px', marginTop: '14px' }}>
+                            <button style={modalStyles.btnPrimary} onClick={handleInvitar} disabled={invitando}>
+                                {invitando ? 'Enviando...' : 'Invitar'}
+                            </button>
+                            <button style={modalStyles.btnSecondary} onClick={cerrarModalInvitar}>
+                                Cerrar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
             <div className="profile-description">
                 <span>Info.</span>
             </div>
@@ -172,21 +252,68 @@ function Profile({ onCerrar, chat, onEliminarChat }) {
                         <h3 style={{ color: "#B80531" }}>Reportar a</h3>
                     </div>
                 </div>
-                <div
-                    className="profile-settings_list"
-                    onClick={onEliminarChat}
-                    style={{ cursor: onEliminarChat ? 'pointer' : 'default' }}
-                >
+                <div className="profile-settings_list">
                     <svg style={{ color: "#B80531" }} viewBox="0 0 24 24" height="24" width="24" preserveAspectRatio="xMidYMid meet" fill="none"><title>delete-refreshed</title><path d="M7 21C6.45 21 5.97917 20.8042 5.5875 20.4125C5.19583 20.0208 5 19.55 5 19V6C4.44772 6 4 5.55228 4 5C4 4.44772 4.44772 4 5 4H9V3.5C9 3.22386 9.22386 3 9.5 3H14.5C14.7761 3 15 3.22386 15 3.5V4H19C19.5523 4 20 4.44772 20 5C20 5.55228 19.5523 6 19 6V19C19 19.55 18.8042 20.0208 18.4125 20.4125C18.0208 20.8042 17.55 21 17 21H7ZM17 6H7V19H17V6ZM9 16.5C9 16.7761 9.22386 17 9.5 17H10.5C10.7761 17 11 16.7761 11 16.5V8.5C11 8.22386 10.7761 8 10.5 8H9.5C9.22386 8 9 8.22386 9 8.5V16.5ZM13 16.5C13 16.7761 13.2239 17 13.5 17H14.5C14.7761 17 15 16.7761 15 16.5V8.5C15 8.22386 14.7761 8 14.5 8H13.5C13.2239 8 13 8.22386 13 8.5V16.5Z" fill="currentColor"></path></svg>
                     <div className="profile-settings_list-text">
-                        <h3 style={{ color: "#B80531" }}>
-                            {chat?.rol === MEMBER_WORKSPACE_ROLES.OWNER ? 'Eliminar grupo' : 'Eliminar chat'}
-                        </h3>
+                        <h3 style={{ color: "#B80531" }}>Eliminar chat</h3>
                     </div>
                 </div>
             </div>
         </div>
     )
 }
+
+const modalStyles = {
+    overlay: {
+        position: 'fixed', inset: 0,
+        background: 'rgba(0,0,0,0.5)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        zIndex: 9999
+    },
+    modal: {
+        background: 'var(--panel-background, #fff)',
+        borderRadius: '30px',
+        width: '350px',
+        padding: '35px',
+        maxWidth: '90vw',
+        boxShadow: '0 8px 32px solid var(--mid-grey)',
+        display: 'flex',
+        flexDirection: 'column'
+    },
+    input: {
+        height: '45px',
+        width: '100%',
+        padding: '8px 12px',
+        borderRadius: '50px',
+        border: 'var(--soft-grey)',
+        marginBottom: '10px',
+        fontSize: '0.9rem',
+        boxSizing: 'border-box',
+        background: 'var(--input-background, #f0f0f0)'
+    },
+    btnPrimary: {
+        flex: 1,
+        padding: '15px 18px',
+        background: 'var(--light-green)',
+        color: 'solid #0000',
+        border: '1.1px solid var(--light-green)',
+        borderRadius: '30px',
+        cursor: 'pointer',
+        fontWeight: 600,
+        boxSizing: 'border-box'
+    },
+    btnSecondary: {
+        flex: 1,
+        padding: '15px 18px',
+        background: 'transparent',
+        border: '1.1px solid var(--mid-grey)',
+        borderRadius: '30px',
+        cursor: 'pointer',
+        fontWeight: 600,
+        boxSizing: 'border-box'
+    }
+};
 
 export default Profile
