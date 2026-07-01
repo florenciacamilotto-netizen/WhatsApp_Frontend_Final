@@ -1,9 +1,13 @@
-import React, { useState, useEffect, useContext } from 'react';
+import React, { useState, useEffect, useContext, useRef } from 'react';
 import EmojiPicker from 'emoji-picker-react';
 import Profile from './Profile';
 import { MEMBER_WORKSPACE_ROLES } from '../constants/memberRoles';
 import { useWorkspaces } from '../context/WorkspacesContext';
 import { AuthContext } from '../context/AuthContext';
+import { getMessages, getNewMessages, sendMessage } from '../services/messageService';
+
+// Cada cuánto se consulta al backend por mensajes nuevos (polling)
+const POLLING_INTERVAL_MS = 3000;
 
 const AddEmoji = ({ onEmojiSelect }) => {
     const [showPicker, setShowPicker] = useState(false);
@@ -39,6 +43,8 @@ function Chat({ chat, onVolver }) {
     const [mostrarPerfil, setMostrarPerfil] = useState(false);
     const { abandonarGrupo, expulsarMiembro, degradarme } = useWorkspaces();
     const { userData } = useContext(AuthContext);
+    const ultimaFechaRef = useRef(null);
+    const intervaloRef = useRef(null);
 
     const togglePerfil = () => setMostrarPerfil(prev => !prev);
     const cerrarPerfil = () => setMostrarPerfil(false);
@@ -47,28 +53,88 @@ function Chat({ chat, onVolver }) {
     const puedeEscribir = chat?.rol === MEMBER_WORKSPACE_ROLES.OWNER ||
                           chat?.rol === MEMBER_WORKSPACE_ROLES.ADMIN;
 
-    useEffect(() => {
-        if (chat) {
-            setListaMensajes([]);
-            setMostrarPerfil(false);
+    // Convierte un mensaje del backend al formato que usa el render de la lista
+    function mapearMensaje(msg) {
+        return {
+            id: msg.message_id,
+            texto: msg.message_contenido,
+            hora: new Date(msg.message_fecha_creacion).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            tipo: msg.user_id === userData?.id ? 'sent' : 'received',
+            fecha_creacion: msg.message_fecha_creacion
+        };
+    }
+
+    // Consulta al backend por mensajes posteriores al último que ya tenemos
+    async function buscarMensajesNuevos() {
+        if (!chat || !ultimaFechaRef.current) return;
+        try {
+            const res = await getNewMessages(chat.workspace_id, ultimaFechaRef.current);
+            const nuevos = res?.data?.messages || [];
+            if (nuevos.length > 0) {
+                setListaMensajes(prev => [...prev, ...nuevos.map(mapearMensaje)]);
+                ultimaFechaRef.current = nuevos[nuevos.length - 1].message_fecha_creacion;
+            }
+        } catch (e) {
+            console.error('Error al buscar mensajes nuevos:', e.message);
         }
+    }
+
+    useEffect(() => {
+        // Limpiar el polling anterior al cambiar de chat
+        if (intervaloRef.current) clearInterval(intervaloRef.current);
+        ultimaFechaRef.current = null;
+
+        if (!chat) {
+            setListaMensajes([]);
+            return;
+        }
+
+        setMostrarPerfil(false);
+
+        async function cargarHistorial() {
+            try {
+                const res = await getMessages(chat.workspace_id);
+                const mensajes = res?.data?.messages || [];
+                setListaMensajes(mensajes.map(mapearMensaje));
+                ultimaFechaRef.current = mensajes.length > 0
+                    ? mensajes[mensajes.length - 1].message_fecha_creacion
+                    : new Date().toISOString();
+            } catch (e) {
+                console.error('Error al cargar los mensajes:', e.message);
+                setListaMensajes([]);
+                ultimaFechaRef.current = new Date().toISOString();
+            }
+        }
+
+        cargarHistorial().then(() => {
+            intervaloRef.current = setInterval(buscarMensajesNuevos, POLLING_INTERVAL_MS);
+        });
+
+        return () => {
+            if (intervaloRef.current) clearInterval(intervaloRef.current);
+        };
     }, [chat]);
 
     const handleEmojiSelect = (emoji) => {
         setNuevoMensaje(prev => prev + emoji);
     };
 
-    const enviarMensaje = () => {
+    const enviarMensaje = async () => {
         if (!puedeEscribir) return;
         if (nuevoMensaje.trim() === '') return;
-        const mensajeNuevo = {
-            id: Date.now(),
-            texto: nuevoMensaje,
-            hora: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-            tipo: 'sent'
-        };
-        setListaMensajes([...listaMensajes, mensajeNuevo]);
+        const texto = nuevoMensaje;
         setNuevoMensaje('');
+        try {
+            const res = await sendMessage(chat.workspace_id, texto);
+            const mensajeCreado = res?.data?.message;
+            if (mensajeCreado) {
+                setListaMensajes(prev => [...prev, mapearMensaje(mensajeCreado)]);
+                ultimaFechaRef.current = mensajeCreado.message_fecha_creacion;
+            }
+        } catch (e) {
+            alert(e.message);
+            setNuevoMensaje(texto);
+        }
     };
 
     const manejarEnter = (e) => {
@@ -238,7 +304,7 @@ function Chat({ chat, onVolver }) {
             </div>
 
             {mostrarPerfil && (
-                <Profile onCerrar={cerrarPerfil} chat={chat} onVolver={onVolver} />
+                <Profile onCerrar={cerrarPerfil} chat={chat} />
             )}
         </div>
     );
