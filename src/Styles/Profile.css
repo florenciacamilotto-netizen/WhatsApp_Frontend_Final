@@ -124,6 +124,7 @@
 
 .btn-buscador:hover {
     background-color: var(--soft-grey);
+    transition: border-color 0.2s ease;
 }
 
 .btn-buscador svg {
@@ -162,6 +163,7 @@
 
 .profile-settings_list:hover {
     background-color: var(--soft-grey);
+    transition: border-color 0.2s ease;
 }
 
 .dark-mode .profile-settings_list {

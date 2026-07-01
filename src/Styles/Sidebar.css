@@ -55,6 +55,7 @@
 
 .chat-panel_image:hover {
     background-color: transparent;
+    transition: border-color 0.2s ease;
 }
 
 .sidebar-icon_messages svg {
@@ -69,8 +70,10 @@
 
 .sidebar-icons button:hover {
     background-color: var(--click-grey);
+    transition: border-color 0.2s ease;
 }
 
 .dark-mode .sidebar-icons button:hover {
     background-color: #282A2A;
+    transition: border-color 0.2s ease;
 }

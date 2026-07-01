@@ -44,18 +44,24 @@
 
 .login-form_login input {
     background-color: var(--soft-grey);
-    border: none;
+    border: 1.1px solid transparent;
     border-radius: 50px;
     display: flex;
     flex-direction: column;
     height: 45px;
     margin: 10px;
+    outline: none;
     padding-left: 20px;
     width: 230px;
 }
 
+.login-form_login input:not(:focus):hover {
+    border: 1.1px solid var(--border-grey);
+    transition: border-color 0.2s ease;
+}
+
 .login-form_login input:focus {
-    outline: 1.1px solid var(--border-grey);
+    outline: 2px solid var(--mid-green);
 }
 
 .btn-submit {

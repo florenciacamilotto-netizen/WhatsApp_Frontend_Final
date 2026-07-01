@@ -306,7 +306,7 @@ function Chat({ chat, onVolver }) {
             {modalEditarNombre && (
                 <div style={editarNombreStyles.overlay} onClick={cerrarModalEditarNombre}>
                     <div style={editarNombreStyles.modal} onClick={(e) => e.stopPropagation()}>
-                        <h3 style={{ marginBottom: '17px' }}>Editar nombre del grupo</h3>
+                        <h3 style={{ marginBottom: '17px' }}>Editar nombre</h3>
                         <input
                             style={editarNombreStyles.input}
                             type="text"
@@ -354,7 +354,7 @@ const editarNombreStyles = {
         width: '350px',
         padding: '31px',
         maxWidth: '90vw',
-        boxShadow: '0 8px 32px rgba(0,0,0,0.25)',
+        boxShadow: '0 8px 32px solid var(--mid-grey)',
         display: 'flex',
         flexDirection: 'column'
     },

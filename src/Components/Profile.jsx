@@ -134,7 +134,7 @@ function Profile({ onCerrar, chat, onVolver }) {
                     <div style={modalStyles.modal}>
                         <h3 style={{ marginBottom: '17px', marginLeft: "10px"}}>Invitar a "{chat?.nombre}"</h3>
                         <input
-                            style={modalStyles.input}
+                            className="modal-input"
                             type="email"
                             placeholder="Email del usuario a invitar"
                             value={emailInvitar}

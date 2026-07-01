@@ -51,6 +51,7 @@
 
 .header-icons button:hover {
     background-color: #F9F8F8;
+    transition: border-color 0.2s ease;
 }
 
 .dark-mode .header-icons button {
@@ -59,6 +60,7 @@
 
 .dark-mode .header-icons button:hover {
     background-color: var(--background-mid_grey);
+    transition: border-color 0.2s ease;
 }
 
 .search-container_menu {
@@ -112,15 +114,58 @@
     color: #A1A2A2;
 }
 
-.search-input:hover {
+.search-input:not(:focus):hover {
     border: 1.1px solid var(--border-grey);
+    transition: border-color 0.2s ease;
 }
 
 .dark-mode .search-input:hover {
     border: 1px solid #666666;
+    transition: border-color 0.2s ease;
 }
 
 .search-input:focus {
+    outline: 2px solid var(--mid-green);
+}
+
+.modal-input {
+    background-color: var(--soft-grey);
+    border: 1.1px solid transparent;
+    border-radius: 50px;
+    box-sizing: border-box;
+    color: black;
+    font-family: 'Roboto', sans-serif;
+    font-size: 0.9rem;
+    height: 45px;
+    margin-bottom: 10px;
+    outline: none;
+    padding: 8px 12px;
+    width: 100%;
+}
+
+.dark-mode .modal-input {
+    color: white;
+}
+
+.modal-input::placeholder {
+    color: var(--dark-grey);
+}
+
+.dark-mode .modal-input::placeholder {
+    color: #A1A2A2;
+}
+
+.modal-input:not(:focus):hover {
+    border: 1.1px solid var(--border-grey);
+    transition: border-color 0.2s ease;
+}
+
+.dark-mode .modal-input:not(:focus):hover {
+    border: 1px solid #666666;
+    transition: border-color 0.2s ease;
+}
+
+.modal-input:focus {
     outline: 2px solid var(--mid-green);
 }
 
@@ -163,11 +208,13 @@
 
 .btn-filter:hover {
     background-color: var(--soft-grey);
+    transition: border-color 0.2s ease;
 }
 
 .dark-mode .btn-filter:hover {
     background-color: var(--deep-grey);
     border: none;
+    transition: border-color 0.2s ease;
 }
 
 .btn-filter--active {
@@ -183,6 +230,7 @@
 
 .btn-filter--active:hover {
     background-color: var(--click-green);
+    transition: border-color 0.2s ease;
 }
 
 .chats-list {
@@ -210,6 +258,7 @@
 
 .chat-panel_menu:hover {
     background: var(--soft-grey);
+    transition: border-color 0.2s ease;
 }
 
 .dark-mode .chat-panel_menu {
@@ -309,6 +358,7 @@
 
 .dark-mode .dropdown-wrapper .dropdown-menu:hover {
     background-color: var(--deep-grey);
+    transition: border-color 0.2s ease;
 }
 
 .dark-mode .dropdown-wrapper .dropdown-item {
@@ -341,4 +391,5 @@
 
 .btnSecondary:hover {
     background-color: var(--soft-grey);
+    transition: border-color 0.2s ease;
 }

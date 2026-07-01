@@ -232,14 +232,14 @@ function Menu({ onChatClick, darkMode, onToggleDarkMode, esOculto }) {
                         <h3 style={{ marginBottom: '17px', paddingLeft: '7px' }}>Nuevo grupo</h3>
 
                         <input
-                            style={styles.input}
+                            className="modal-input"
                             type="text"
                             placeholder="Nombre del grupo*"
                             value={nuevoNombre}
                             onChange={e => setNuevoNombre(e.target.value)}
                         />
                         <input
-                            style={styles.input}
+                            className="modal-input"
                             type="text"
                             placeholder="Descripción (opcional)"
                             value={nuevaDesc}
@@ -250,7 +250,8 @@ function Menu({ onChatClick, darkMode, onToggleDarkMode, esOculto }) {
                         {emailsInvitados.map((email, i) => (
                             <div key={i} style={{ display: 'flex', gap: '6px', marginBottom: '10px' }}>
                                 <input
-                                    style={{ ...styles.input, marginBottom: 0, flex: 1 }}
+                                    className="modal-input"
+                                    style={{ marginBottom: 0, flex: 1 }}
                                     type="email"
                                     placeholder={`Email usuario ${i + 1}`}
                                     value={email}
@@ -315,7 +316,8 @@ const styles = {
         width: '100%',
         padding: '8px 12px',
         borderRadius: '50px',
-        border: 'var(--soft-grey)',
+        border: 'none',
+        outline: 'none',
         marginBottom: '10px',
         fontSize: '0.9rem',
         boxSizing: 'border-box',

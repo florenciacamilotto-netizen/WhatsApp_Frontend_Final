@@ -86,6 +86,7 @@
 
 .dark-mode .btn-dowland:hover{
     background-color: var(--dark-green);
+    transition: border-color 0.2s ease;
 }
 
 .second-section_chats {
@@ -128,10 +129,12 @@
 
 .btn-attach-file:hover {
     background-color: white;
+    transition: border-color 0.2s ease;
 }
 
 .dark-mode .btn-attach-file:hover{
     background-color: var(--background-dark_grey);
+    transition: border-color 0.2s ease;
 }
 
 /* Header */
@@ -227,6 +230,7 @@
 
 .btn-videocall:hover {
     background-color: var(--soft-grey);
+    transition: border-color 0.2s ease;
 }
 
 /* Mensajes */
@@ -450,15 +454,18 @@
 
 .btn-attach:hover {
     background-color: #f9f8f8;
+    transition: border-color 0.2s ease;
 }
 
 .btn-emoji:hover {
     background-color: #f9f8f8;
+    transition: border-color 0.2s ease;
 }
 
 .btn-send:hover {
     background-color: var(--mid-green);
     color: white;
+    transition: border-color 0.2s ease;
 }
 
 .dark-mode .btn-attach {
@@ -475,12 +482,15 @@
 
 .dark-mode .btn-attach:hover {
     background-color: #3a3c3c;
+    transition: border-color 0.2s ease;
 }
 
 .dark-mode .btn-emoji:hover {
     background-color: #3a3c3c;
+    transition: border-color 0.2s ease;
 }
 
 .dark-mode .btn-send:hover {
     background-color: #3a3c3c;
+    transition: border-color 0.2s ease;
 }
