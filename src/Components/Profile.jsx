@@ -83,7 +83,7 @@ function Profile({ onCerrar, chat }) {
 
                     {!cargandoMiembros && miembros.map(m => (
                         <div key={m.member_id} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '12px 0' }}>
-                            <img src="/foto-perfil.png" alt={m.user_nombre}
+                            <img src="/contacto-4.png" alt={m.user_nombre}
                                 style={{ width: '36px', height: '36px', borderRadius: '50%', objectFit: 'cover' }} />
                             <div>
                                 <div style={{ fontSize: '0.9rem', fontWeight: 500 }}>{m.user_nombre}</div>
