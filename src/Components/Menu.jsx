@@ -1,0 +1,362 @@
+import React, { useState, useContext } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { AuthContext } from '../context/AuthContext';
+import { useWorkspaces } from '../context/WorkspacesContext';
+import { MEMBER_WORKSPACE_ROLES } from '../constants/memberRoles';
+import '../Styles/Menu.css';
+
+function Menu({ onChatClick, darkMode, onToggleDarkMode, esOculto }) {
+    const { logout, userData } = useContext(AuthContext);
+    const {
+        workspaces, loading, error, crearGrupo, invitarMiembro,
+        invitaciones, aceptarInvitacion, rechazarInvitacion
+    } = useWorkspaces();
+
+    const navigate = useNavigate();
+    const [busqueda, setBusqueda] = useState('');
+    const [menuAbierto, setMenuAbierto] = useState(false);
+    const [filtroActivo, setFiltroActivo] = useState('todos');
+    const [procesandoInvitacion, setProcesandoInvitacion] = useState(null);
+    const [invitacionARechazar, setInvitacionARechazar] = useState(null);
+    const [errorRechazarInvitacion, setErrorRechazarInvitacion] = useState('');
+
+    // (DUEÑO) CREAR GRUPO //
+    const [modalCrear, setModalCrear] = useState(false);
+    const [nuevoNombre, setNuevoNombre] = useState('');
+    const [nuevaDesc, setNuevaDesc] = useState('');
+    const [emailsInvitados, setEmailsInvitados] = useState(['', '']);
+    const [creando, setCreando] = useState(false);
+    const [errorCrear, setErrorCrear] = useState('');
+
+    /* Filtros */
+    const workspacesFiltrados = workspaces.filter(ws => {
+        const nombre = ws.workspace_nombre || ws.nombre || '';
+        const coincide = busqueda === '' || nombre.toLowerCase().startsWith(busqueda.toLowerCase());
+        if (filtroActivo === 'grupos') return coincide;
+        if (filtroActivo === 'todos') return coincide;
+        return false;
+    });
+
+    // (DUEÑO) PROCESAR CREACIÓN DE GRUPO //
+    async function handleCrearGrupo() {
+        setErrorCrear('');
+        if (!nuevoNombre.trim()) return setErrorCrear('El nombre es obligatorio.');
+        const emailsValidos = emailsInvitados.filter(e => e.trim() !== '');
+        if (emailsValidos.length < 2) return setErrorCrear('Debes invitar al menos 2 usuarios.');
+        try {
+            setCreando(true);
+            const res = await crearGrupo(nuevoNombre.trim(), nuevaDesc.trim());
+            const workspace_id = res.data.workspace._id;
+            for (const email of emailsValidos) {
+                await invitarMiembro(workspace_id, email.trim(), MEMBER_WORKSPACE_ROLES.USER);
+            }
+            setModalCrear(false);
+            setNuevoNombre('');
+            setNuevaDesc('');
+            setEmailsInvitados(['', '']);
+        } catch (e) {
+            setErrorCrear(e.message);
+        } finally {
+            setCreando(false);
+        }
+    }
+
+    // ACEPTAR O RECHAZAR UNA INVITACIÓN //
+    async function handleAceptarInvitacion(inv) {
+        try {
+            setProcesandoInvitacion(inv.workspace_id);
+            await aceptarInvitacion(inv.workspace_id);
+        } catch (e) {
+            alert(e.message);
+        } finally {
+            setProcesandoInvitacion(null);
+        }
+    }
+
+    function abrirModalRechazarInvitacion(inv) {
+        setErrorRechazarInvitacion('');
+        setInvitacionARechazar(inv);
+    }
+
+    function cerrarModalRechazarInvitacion() {
+        if (procesandoInvitacion) return;
+        setInvitacionARechazar(null);
+        setErrorRechazarInvitacion('');
+    }
+
+    async function ejecutarRechazarInvitacion() {
+        try {
+            setProcesandoInvitacion(invitacionARechazar.workspace_id);
+            setErrorRechazarInvitacion('');
+            await rechazarInvitacion(invitacionARechazar.workspace_id);
+            setInvitacionARechazar(null);
+        } catch (e) {
+            setErrorRechazarInvitacion(e.message);
+        } finally {
+            setProcesandoInvitacion(null);
+        }
+    }
+
+    // Convertir workspace en objeto compatible con Chat
+    function abrirChat(ws) {
+        onChatClick({
+            id: ws.workspace_id,
+            nombre: ws.workspace_nombre,
+            imagen: '/foto-grupo.jpg',
+            rol: ws.member_rol,
+            workspace_id: ws.workspace_id,
+            esGrupo: true
+        });
+    }
+
+    return (
+        <div className={`menu-container ${darkMode ? 'dark-mode' : ''} ${esOculto ? 'menu-oculto' : ''}`}>
+            {/* Nombre APP */}
+            <div className="menu-topbar">
+                <h1>WhatsApp</h1>
+                <div className="header-icons">
+                    <button className="btn-icon" title="Nuevo grupo" onClick={() => setModalCrear(true)}>
+                        <svg viewBox="0 0 24 24" height="24" width="24" preserveAspectRatio="xMidYMid meet" fill="none">
+                            <title>new-chat-outline</title>
+                            <path d="M9.53277 12.9911H11.5086V14.9671C11.5086 15.3999 11.7634 15.8175 12.1762 15.9488C12.8608 16.1661 13.4909 15.6613 13.4909 15.009V12.9911H15.4672C15.9005 12.9911 16.3181 12.7358 16.449 12.3226C16.6659 11.6381 16.1606 11.0089 15.5086 11.0089H13.4909V9.03332C13.4909 8.60007 13.2361 8.18252 12.8233 8.05119C12.1391 7.83391 11.5086 8.33872 11.5086 8.991V11.0089H9.49088C8.83941 11.0089 8.33411 11.6381 8.55097 12.3226C8.68144 12.7358 9.09947 12.9911 9.53277 12.9911Z" fill="currentColor"></path>
+                            <path fillRule="evenodd" clipRule="evenodd" d="M0.944298 5.52617L2.99998 8.84848V17.3333C2.99998 18.8061 4.19389 20 5.66665 20H19.3333C20.8061 20 22 18.8061 22 17.3333V6.66667C22 5.19391 20.8061 4 19.3333 4H1.79468C1.01126 4 0.532088 4.85997 0.944298 5.52617ZM4.99998 8.27977V17.3333C4.99998 17.7015 5.29845 18 5.66665 18H19.3333C19.7015 18 20 17.7015 20 17.3333V6.66667C20 6.29848 19.7015 6 19.3333 6H3.58937L4.99998 8.27977Z" fill="currentColor"></path>
+                        </svg>
+                    </button>
+                    <div className="dropdown-wrapper">
+                        <button onClick={() => setMenuAbierto(!menuAbierto)} className="icon-btn">
+                            <svg viewBox="0 0 24 24" height="24" width="24" preserveAspectRatio="xMidYMid meet" fill="none">
+                                <path d="M12 20C11.45 20 10.9792 19.8042 10.5875 19.4125C10.1958 19.0208 10 18.55 10 18C10 17.45 10.1958 16.9792 10.5875 16.5875C10.9792 16.1958 11.45 16 12 16C12.55 16 13.0208 16.1958 13.4125 16.5875C13.8042 16.9792 14 17.45 14 18C14 18.55 13.8042 19.0208 13.4125 19.4125C13.0208 19.8042 12.55 20 12 20ZM12 14C11.45 14 10.9792 13.8042 10.5875 13.4125C10.1958 13.0208 10 12.55 10 12C10 11.45 10.1958 10.9792 10.5875 10.5875C10.9792 10.1958 11.45 10 12 10C12.55 10 13.0208 10.1958 13.4125 10.5875C13.8042 10.9792 14 11.45 14 12C14 12.55 13.8042 13.0208 13.4125 13.4125C13.0208 13.8042 12.55 14 12 14ZM12 8C11.45 8 10.9792 7.80417 10.5875 7.4125C10.1958 7.02083 10 6.55 10 6C10 5.45 10.1958 4.97917 10.5875 4.5875C10.9792 4.19583 11.45 4 12 4C12.55 4 13.0208 4.19583 13.4125 4.5875C13.8042 4.97917 14 5.45 14 6C14 6.55 13.8042 7.02083 13.4125 7.4125C13.0208 7.80417 12.55 8 12 8Z" fill="currentColor"></path>
+                            </svg>
+                        </button>
+                        {menuAbierto && (
+                            <div className="dropdown-menu">
+                                <div className="dropdown-item" onClick={() => { onToggleDarkMode(); setMenuAbierto(false); }}>
+                                    {darkMode ? 'Modo claro' : 'Modo oscuro'}
+                                </div>
+                                <div className="dropdown-item" onClick={() => { logout(); navigate('/login'); setMenuAbierto(false); }}>
+                                    Cerrar sesión
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            </div>
+
+            {/* Buscador */}
+            <div className="search-container_menu">
+                <div className="search-icon">
+                    <svg viewBox="0 0 20 20" height="20" width="20" fill="none">
+                        <path fillRule="evenodd" clipRule="evenodd" d="M4.36653 4.3664C5.36341 3.36953 6.57714 2.87 8.00012 2.87C9.42309 2.87 10.6368 3.36953 11.6337 4.3664C12.6306 5.36329 13.1301 6.57724 13.1301 8.00062C13.1301 8.57523 13.0412 9.11883 12.8624 9.63057C12.6972 10.1038 12.4733 10.5419 12.1909 10.9444L16.5712 15.3247C16.7454 15.4989 16.8385 15.7046 16.8385 15.9375C16.8385 16.1704 16.7454 16.3761 16.5712 16.5503C16.396 16.7254 16.1866 16.8175 15.948 16.8175C15.7095 16.8175 15.5001 16.7254 15.3249 16.5503L10.9448 12.1906C10.5421 12.4731 10.104 12.697 9.63069 12.8623C9.11895 13.041 8.57535 13.13 8.00074 13.13C6.57736 13.13 5.36341 12.6305 4.36653 11.6336C3.36965 10.6367 2.87012 9.42297 2.87012 8C2.87012 6.57702 3.36965 5.36328 4.36653 4.3664ZM8.00012 4.63C7.06198 4.63 6.26877 4.95685 5.61287 5.61275C4.95698 6.26865 4.63012 7.06186 4.63012 8C4.63012 8.93813 4.95698 9.73134 5.61287 10.3872C6.26877 11.0431 7.06198 11.37 8.00012 11.37C8.93826 11.37 9.73146 11.0431 10.3874 10.3872C11.0433 9.73134 11.3701 8.93813 11.3701 8C11.3701 7.06186 11.0433 6.26865 10.3874 5.61275C9.73146 4.95685 8.93826 4.63 8.00012 4.63Z" fill="currentColor"></path>
+                    </svg>
+                </div>
+                <input
+                    type="text"
+                    placeholder="Buscar un grupo"
+                    className="search-input"
+                    value={busqueda}
+                    onChange={(e) => setBusqueda(e.target.value)}
+                />
+            </div>
+
+            {/* Filtros */}
+            <div className="filter-container_menu">
+                <button className={`btn-filter ${filtroActivo === 'todos' ? 'btn-filter--active' : ''}`} onClick={() => setFiltroActivo('todos')}>Todos</button>
+                <button className={`btn-filter ${filtroActivo === 'grupos' ? 'btn-filter--active' : ''}`} onClick={() => setFiltroActivo('grupos')}>Grupos</button>
+            </div>
+
+            {/* Invitaciones Pendientes */}
+            {invitaciones.length > 0 && (
+                <div className="chats-list" style={{ borderBottom: '1px solid var(--mid-grey)', paddingBottom: '8px', marginBottom: '8px' }}>
+                    <p style={{ fontSize: '0.8rem', fontWeight: 600, padding: '6px 12px', color: 'var(--mid-green)' }}>
+                        Invitaciones pendientes
+                    </p>
+                    {invitaciones.map(inv => (
+                        <div key={inv.member_id} className="chat-panel_menu">
+                            <div className="chat-panel_image">
+                                <img src="/foto-grupo.jpg" alt={inv.workspace_nombre} />
+                            </div>
+                            <div className="chat-panel_text" style={{ flex: 1 }}>
+                                <div className="chat-panel_superior">
+                                    <h3>{inv.workspace_nombre}</h3>
+                                </div>
+                                <div className="chat-panel_inferior">
+                                    <p>Te invitaron como {inv.member_rol}</p>
+                                </div>
+                            </div>
+                            <div style={{ display: 'flex', gap: '8px', paddingRight: '4px' }}>
+                                <button
+                                    title="Aceptar"
+                                    disabled={procesandoInvitacion === inv.workspace_id}
+                                    style={{
+                                        background: 'var(--mid-green)',
+                                        border: 'none',
+                                        borderRadius: '50%',
+                                        width: '32px',
+                                        height: '32px',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        cursor: 'pointer',
+                                        color: '#FAFAFA',
+                                        flexShrink: 0
+                                    }}
+                                    onClick={() => handleAceptarInvitacion(inv)}
+                                >
+                                    <svg viewBox="0 0 24 24" height="18" width="18" fill="currentColor">
+                                        <path d="M9 16.17 4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" />
+                                    </svg>
+                                </button>
+                                <button
+                                    title="Rechazar"
+                                    disabled={procesandoInvitacion === inv.workspace_id}
+                                    style={{
+                                        background: '#B80531',
+                                        border: 'none',
+                                        borderRadius: '50%',
+                                        width: '32px',
+                                        height: '32px',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        cursor: 'pointer',
+                                        color: '#FAFAFA',
+                                        marginRight: '10px',
+                                        flexShrink: 0
+                                    }}
+                                    onClick={() => abrirModalRechazarInvitacion(inv)}
+                                >
+                                    <svg viewBox="0 0 24 24" height="18" width="18" fill="currentColor">
+                                        <path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z" />
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            )}
+
+            {/* Lista Grupos */}
+            {loading && <div className="no-results">Cargando grupos...</div>}
+            {error && <div className="no-results" style={{ color: '#B80531' }}>{error}</div>}
+            {!loading && workspacesFiltrados.length === 0 && (
+                <div className="no-results">No tenés grupos aún. ¡Creá uno!</div>
+            )}
+            {!loading && workspacesFiltrados.length > 0 && (
+                <div className="chats-list">
+                    {workspacesFiltrados.map(ws => (
+                        <div key={ws.workspace_id} className="chat-panel_menu">
+                            <div className="chat-panel_image" onClick={() => abrirChat(ws)} style={{ cursor: 'pointer' }}>
+                                <img src="/foto-grupo.jpg" alt={ws.workspace_nombre} />
+                            </div>
+                            <div className="chat-panel_text" onClick={() => abrirChat(ws)} style={{ cursor: 'pointer', flex: 1 }}>
+                                <div className="chat-panel_superior">
+                                    <h3>{ws.workspace_nombre}</h3>
+                                    <h5 style={{ fontSize: '0.7rem', color: 'var(--mid-green)', fontWeight: 600, marginRight: '13px' }}>
+                                        {ws.member_rol}
+                                    </h5>
+                                </div>
+                                <div className="chat-panel_inferior">
+                                    <p>{ws.workspace_descripcion || 'Sin descripción'}</p>
+                                </div>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            )}
+
+            {/* Modal Crear Grupo */}
+            {modalCrear && (
+                <div className="modal-overlay">
+                    <div className="modal-content">
+                        <h3 style={{ marginBottom: '17px', paddingLeft: '7px' }}>Nuevo grupo</h3>
+
+                        <input
+                            className="modal-input modal-input-style"
+                            type="text"
+                            placeholder="Nombre del grupo*"
+                            value={nuevoNombre}
+                            onChange={e => setNuevoNombre(e.target.value)}
+                        />
+                        <input
+                            className="modal-input modal-input-style"
+                            type="text"
+                            placeholder="Descripción (opcional)"
+                            value={nuevaDesc}
+                            onChange={e => setNuevaDesc(e.target.value)}
+                        />
+
+                        <p style={{ fontSize: '0.85rem', marginTop: '7px', marginBottom: '15px', paddingLeft: '7px' }}>Invitar al menos 2 usuarios:</p>
+                        {emailsInvitados.map((email, i) => (
+                            <div key={i} style={{ display: 'flex', gap: '6px', marginBottom: '10px' }}>
+                                <input
+                                    className="modal-input modal-input-style"
+                                    style={{ marginBottom: 0, flex: 1 }}
+                                    type="email"
+                                    placeholder={`Email usuario ${i + 1}`}
+                                    value={email}
+                                    onChange={e => {
+                                        const arr = [...emailsInvitados];
+                                        arr[i] = e.target.value;
+                                        setEmailsInvitados(arr);
+                                    }}
+                                />
+                                {emailsInvitados.length > 2 && (
+                                    <button className="modal-btn-danger" onClick={() => setEmailsInvitados(emailsInvitados.filter((_, j) => j !== i))}>✕</button>
+                                )}
+                            </div>
+                        ))}
+                        <button
+                            className="btnSecondary"
+                            style={{ marginTop: '18px', marginBottom: '6px' }}
+                            onClick={() => setEmailsInvitados([...emailsInvitados, ''])}
+                        >
+                            + Agregar otro
+                        </button>
+
+                        {errorCrear && <p style={{ color: '#B80531', fontSize: '0.85rem', margin: '8px 0' }}>{errorCrear}</p>}
+
+                        <div style={{ display: 'flex', gap: '8px', marginTop: '14px' }}>
+                            <button className="modal-btn-primary" onClick={handleCrearGrupo} disabled={creando}>
+                                {creando ? 'Creando...' : 'Crear grupo'}
+                            </button>
+                            <button className='btnSecondary' onClick={() => { setModalCrear(false); setErrorCrear(''); }}>
+                                Cancelar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Modal {Rechazar} Invitación */}
+            {invitacionARechazar && (
+                <div className="modal-overlay" onClick={cerrarModalRechazarInvitacion}>
+                    <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+                        <h3>Rechazar invitación</h3>
+                        <p className="modal-confirm-text">
+                            ¿Seguro que querés rechazar la invitación a "{invitacionARechazar.workspace_nombre}"?
+                        </p>
+                        {errorRechazarInvitacion && <p className="modal-error-text">{errorRechazarInvitacion}</p>}
+                        <div className="modal-actions-container">
+                            <button
+                                className="modal-btn-danger-full"
+                                onClick={ejecutarRechazarInvitacion}
+                                disabled={procesandoInvitacion === invitacionARechazar.workspace_id}
+                            >
+                                {procesandoInvitacion === invitacionARechazar.workspace_id ? 'Procesando...' : 'Rechazar'}
+                            </button>
+                            <button
+                                className="btnSecondary"
+                                onClick={cerrarModalRechazarInvitacion}
+                                disabled={procesandoInvitacion === invitacionARechazar.workspace_id}
+                            >
+                                Cancelar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+}
+
+export default Menu;

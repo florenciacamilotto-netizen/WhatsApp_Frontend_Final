@@ -1,0 +1,379 @@
+import React, { useEffect, useState } from 'react'
+import { getWorkspaceMembers } from '../services/workspaceService'
+import { useWorkspaces } from '../context/WorkspacesContext'
+import { MEMBER_WORKSPACE_ROLES } from '../constants/memberRoles'
+
+function Profile({ onCerrar, chat, onVolver }) {
+    const { invitarMiembro, eliminarGrupo, abandonarGrupo } = useWorkspaces();
+    const [miembros, setMiembros] = useState([]);
+    const [cargandoMiembros, setCargandoMiembros] = useState(false);
+
+    // --- Invitar miembros ---
+    const [modalInvitar, setModalInvitar] = useState(false);
+    const [emailInvitar, setEmailInvitar] = useState('');
+    const [invitando, setInvitando] = useState(false);
+    const [errorInvitar, setErrorInvitar] = useState('');
+    const [successInvitar, setSuccessInvitar] = useState('');
+
+    const puedeInvitar = chat?.rol === MEMBER_WORKSPACE_ROLES.OWNER;
+    const esDueño = chat?.rol === MEMBER_WORKSPACE_ROLES.OWNER;
+
+    function cerrarModalInvitar() {
+        setModalInvitar(false);
+        setEmailInvitar('');
+        setErrorInvitar('');
+        setSuccessInvitar('');
+    }
+
+    async function handleInvitar() {
+        setErrorInvitar('');
+        setSuccessInvitar('');
+        if (!emailInvitar.trim()) return setErrorInvitar('Ingresá un email.');
+        try {
+            setInvitando(true);
+            await invitarMiembro(chat.workspace_id, emailInvitar.trim(), MEMBER_WORKSPACE_ROLES.USER);
+            setSuccessInvitar('Invitación enviada con éxito.');
+            setEmailInvitar('');
+        } catch (e) {
+            setErrorInvitar(e.message);
+        } finally {
+            setInvitando(false);
+        }
+    }
+
+    // --- Eliminar / abandonar grupo ---
+    const [modalConfirmarSalida, setModalConfirmarSalida] = useState(false);
+    const [procesandoSalida, setProcesandoSalida] = useState(false);
+    const [errorSalida, setErrorSalida] = useState('');
+
+    function abrirModalConfirmarSalida() {
+        setErrorSalida('');
+        setModalConfirmarSalida(true);
+    }
+
+    function cerrarModalConfirmarSalida() {
+        if (procesandoSalida) return;
+        setModalConfirmarSalida(false);
+        setErrorSalida('');
+    }
+
+    async function handleEliminarAbandonar() {
+        try {
+            setProcesandoSalida(true);
+            setErrorSalida('');
+            if (esDueño) {
+                await eliminarGrupo(chat.workspace_id);
+            } else {
+                await abandonarGrupo(chat.workspace_id);
+            }
+            setModalConfirmarSalida(false);
+            onCerrar?.();
+            onVolver?.();
+        } catch (e) {
+            setErrorSalida(e.message);
+        } finally {
+            setProcesandoSalida(false);
+        }
+    }
+
+    useEffect(() => {
+        if (!chat?.workspace_id) return;
+
+        let cancelado = false;
+
+        async function cargarMiembros(esPrimeraCarga) {
+            if (esPrimeraCarga) setCargandoMiembros(true);
+            try {
+                const res = await getWorkspaceMembers(chat.workspace_id);
+                if (!cancelado) setMiembros(res?.data?.members || []);
+            } catch (e) {
+                // No mostramos el error técnico al usuario: si todavía no hay
+                // miembros aceptados (o falla momentáneamente), simplemente
+                // se muestra "0 miembros" y se vuelve a intentar solo.
+                console.error('Error al obtener miembros:', e.message);
+            } finally {
+                if (esPrimeraCarga) setCargandoMiembros(false);
+            }
+        }
+
+        cargarMiembros(true);
+
+        // Refrescar periódicamente para que la lista se vaya completando
+        // a medida que los usuarios invitados aceptan unirse al grupo.
+        const intervalo = setInterval(() => cargarMiembros(false), 5000);
+
+        return () => {
+            cancelado = true;
+            clearInterval(intervalo);
+        };
+    }, [chat?.workspace_id]);
+
+    return (
+        <div className="profile-container">
+            <div className="profile-header">
+                <span
+                    aria-hidden="true"
+                    className="xxk0z11 xvy4d1p"
+                    onClick={onCerrar}
+                    style={{ cursor: 'pointer' }}
+                >{/* Ícono Cruz */}
+                    <svg viewBox="0 0 24 24" height="24" width="24" preserveAspectRatio="xMidYMid meet" fill="none"><title>ic-close</title><path d="M12 13.4L7.09999 18.3C6.91665 18.4834 6.68332 18.575 6.39999 18.575C6.11665 18.575 5.88332 18.4834 5.69999 18.3C5.51665 18.1167 5.42499 17.8834 5.42499 17.6C5.42499 17.3167 5.51665 17.0834 5.69999 16.9L10.6 12L5.69999 7.10005C5.51665 6.91672 5.42499 6.68338 5.42499 6.40005C5.42499 6.11672 5.51665 5.88338 5.69999 5.70005C5.88332 5.51672 6.11665 5.42505 6.39999 5.42505C6.68332 5.42505 6.91665 5.51672 7.09999 5.70005L12 10.6L16.9 5.70005C17.0833 5.51672 17.3167 5.42505 17.6 5.42505C17.8833 5.42505 18.1167 5.51672 18.3 5.70005C18.4833 5.88338 18.575 6.11672 18.575 6.40005C18.575 6.68338 18.4833 6.91672 18.3 7.10005L13.4 12L18.3 16.9C18.4833 17.0834 18.575 17.3167 18.575 17.6C18.575 17.8834 18.4833 18.1167 18.3 18.3C18.1167 18.4834 17.8833 18.575 17.6 18.575C17.3167 18.575 17.0833 18.4834 16.9 18.3L12 13.4Z" fill="currentColor"></path></svg>
+                </span>
+                <h3>Info. del grupo</h3>
+                {/* Ícono Editar */}
+                <span aria-hidden="true" data-icon="pencil-refreshed" className="xxk0z11 xvy4d1p"><svg viewBox="0 0 24 24" height="24" width="24" preserveAspectRatio="xMidYMid meet" className="" fill="none"><title>pencil-refreshed</title><path d="M5 18.9999H6.4L16.2 9.22488L14.775 7.79988L5 17.5999V18.9999ZM4 20.9999C3.71667 20.9999 3.47917 20.904 3.2875 20.7124C3.09583 20.5207 3 20.2832 3 19.9999V17.5749C3 17.3082 3.05 17.054 3.15 16.8124C3.25 16.5707 3.39167 16.3582 3.575 16.1749L16.2 3.57488C16.3833 3.39154 16.6 3.24988 16.85 3.14988C17.1 3.04988 17.3583 2.99988 17.625 2.99988C17.8917 2.99988 18.1458 3.04988 18.3875 3.14988C18.6292 3.24988 18.85 3.39988 19.05 3.59988L20.425 4.99988C20.625 5.18321 20.7708 5.39571 20.8625 5.63738C20.9542 5.87904 21 6.13321 21 6.39988C21 6.64988 20.9542 6.89988 20.8625 7.14988C20.7708 7.39988 20.625 7.62488 20.425 7.82488L7.825 20.4249C7.64167 20.6082 7.42917 20.7499 7.1875 20.8499C6.94583 20.9499 6.69167 20.9999 6.425 20.9999H4Z" fill="currentColor"></path></svg></span>
+            </div>
+            <div className="profile-person">
+                <div className="profile-image">
+                    <img src={chat?.imagen} alt={chat?.nombre} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} />
+                </div>
+                <div className="profile-info">
+                    <h2>{chat?.nombre || "Nombre"}</h2>
+                    <span>{miembros.length} {miembros.length === 1 ? 'miembro' : 'miembros'}</span>
+                    <div className="profile-buttons-row" style={{ display: 'flex', flexDirection: 'row', flexWrap: 'nowrap', gap: '10px', width: '100%' }}>
+                        <button className="btn-buscador" style={{ flex: 1, minWidth: 0 }}>
+                            {/* Ícono Buscador */}
+                            <span aria-hidden="true" class="x1v5yvga xxk0z11 xvy4d1p"><svg viewBox="0 0 24 24" height="24" width="24" preserveAspectRatio="xMidYMid meet" class="" fill="none"><title>ic-search</title><path d="M9.5 16C7.68333 16 6.14583 15.3708 4.8875 14.1125C3.62917 12.8542 3 11.3167 3 9.5C3 7.68333 3.62917 6.14583 4.8875 4.8875C6.14583 3.62917 7.68333 3 9.5 3C11.3167 3 12.8542 3.62917 14.1125 4.8875C15.3708 6.14583 16 7.68333 16 9.5C16 10.2333 15.8833 10.925 15.65 11.575C15.4167 12.225 15.1 12.8 14.7 13.3L20.3 18.9C20.4833 19.0833 20.575 19.3167 20.575 19.6C20.575 19.8833 20.4833 20.1167 20.3 20.3C20.1167 20.4833 19.8833 20.575 19.6 20.575C19.3167 20.575 19.0833 20.4833 18.9 20.3L13.3 14.7C12.8 15.1 12.225 15.4167 11.575 15.65C10.925 15.8833 10.2333 16 9.5 16ZM9.5 14C10.75 14 11.8125 13.5625 12.6875 12.6875C13.5625 11.8125 14 10.75 14 9.5C14 8.25 13.5625 7.1875 12.6875 6.3125C11.8125 5.4375 10.75 5 9.5 5C8.25 5 7.1875 5.4375 6.3125 6.3125C5.4375 7.1875 5 8.25 5 9.5C5 10.75 5.4375 11.8125 6.3125 12.6875C7.1875 13.5625 8.25 14 9.5 14Z" fill="currentColor"></path></svg></span>
+                            <span>Busca</span>
+                        </button>
+                        {puedeInvitar && (
+                            <button className="btn-buscador" style={{ flex: 1, minWidth: 0, marginLeft: '10px', marginRight: '10px' }} onClick={() => setModalInvitar(true)}>
+                                {/* Ícono Invitar */}
+                                <span aria-hidden="true"><svg viewBox="0 0 24 24" height="24" width="24" preserveAspectRatio="xMidYMid meet" fill="none"><title>ic-invitar</title><path d="M15 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm-9-2V7H4v3H1v2h3v3h2v-3h3v-2H6zm9 4c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" fill="currentColor"></path></svg></span>
+                                <span>Invitar</span>
+                            </button>
+                        )}
+                    </div>
+                </div>
+            </div>
+            {modalInvitar && (
+                <div style={modalStyles.overlay}>
+                    <div style={modalStyles.modal}>
+                        <h3 style={{ marginBottom: '14px' }}>Invitar a "{chat?.nombre}"</h3>
+                        <input
+                            className="modal-input"
+                            type="email"
+                            placeholder="Email del usuario a invitar"
+                            value={emailInvitar}
+                            onChange={e => setEmailInvitar(e.target.value)}
+                        />
+
+                        {errorInvitar && <p style={{ color: '#B80531', fontSize: '0.85rem', margin: '8px 0' }}>{errorInvitar}</p>}
+                        {successInvitar && <p style={{ color: 'var(--mid-green)', fontSize: '0.85rem', margin: '8px 0' }}>{successInvitar}</p>}
+
+                        <div style={{ display: 'flex', gap: '8px', marginTop: '14px' }}>
+                            <button style={modalStyles.btnPrimary} onClick={handleInvitar} disabled={invitando}>
+                                {invitando ? 'Enviando...' : 'Invitar'}
+                            </button>
+                            <button style={modalStyles.btnSecondary} onClick={cerrarModalInvitar}>
+                                Cancelar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+            <div className="profile-description">
+                <span>Info.</span>
+            </div>
+
+            {/* ---- MIEMBROS DEL GRUPO (usuarios que aceptaron la invitación) ---- */}
+            <div className="profile-settings">
+                <div className="profile-settings_list --miembros" style={{ display: 'block', height: 'auto', paddingTop: '10px', paddingBottom: '10px' }}>
+                    <h3 style={{ marginBottom: '10px' }}>Miembros del grupo</h3>
+
+                    {cargandoMiembros && <p style={{ fontSize: '13px', color: '#888' }}>Cargando miembros...</p>}
+
+                    {!cargandoMiembros && miembros.length === 0 && (
+                        <p style={{ fontSize: '13px', color: '#888' }}>Todavía no hay miembros que hayan aceptado.</p>
+                    )}
+
+                    {!cargandoMiembros && miembros.map(m => (
+                        <div key={m.member_id} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '12px 0' }}>
+                            <img src="/contacto-4.png" alt={m.user_nombre}
+                                style={{ width: '36px', height: '36px', borderRadius: '50%', objectFit: 'cover' }} />
+                            <div>
+                                <div style={{ fontSize: '14px', fontWeight: 500 }}>{m.user_nombre}</div>
+                                <div style={{ fontSize: '12px', color: '#888' }}>{m.user_email} · {m.member_rol}</div>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            </div>
+
+            <div className="profile-settings">
+                <div className="profile-settings_list">
+                    { /* Ícono Multimedia */}
+                    <span aria-hidden="true"><svg viewBox="0 0 24 24" height="24" width="24" preserveAspectRatio="xMidYMid meet" className="" fill="none"><title>ic-perm-media</title><path d="M3 21C2.45 21 1.97917 20.8042 1.5875 20.4125C1.19583 20.0208 1 19.55 1 19V7C1 6.71667 1.09583 6.47917 1.2875 6.2875C1.47917 6.09583 1.71667 6 2 6C2.28333 6 2.52083 6.09583 2.7125 6.2875C2.90417 6.47917 3 6.71667 3 7V19H19C19.2833 19 19.5208 19.0958 19.7125 19.2875C19.9042 19.4792 20 19.7167 20 20C20 20.2833 19.9042 20.5208 19.7125 20.7125C19.5208 20.9042 19.2833 21 19 21H3ZM7 17C6.45 17 5.97917 16.8042 5.5875 16.4125C5.19583 16.0208 5 15.55 5 15V4C5 3.45 5.19583 2.97917 5.5875 2.5875C5.97917 2.19583 6.45 2 7 2H11.175C11.4417 2 11.6958 2.05 11.9375 2.15C12.1792 2.25 12.3917 2.39167 12.575 2.575L14 4H21C21.55 4 22.0208 4.19583 22.4125 4.5875C22.8042 4.97917 23 5.45 23 6V15C23 15.55 22.8042 16.0208 22.4125 16.4125C22.0208 16.8042 21.55 17 21 17H7ZM7 15H21V6H13.175L11.175 4H7V15ZM13.25 11.5L12.1 10C12 9.86667 11.8667 9.8 11.7 9.8C11.5333 9.8 11.4 9.86667 11.3 10L9.625 12.2C9.49167 12.3667 9.47083 12.5417 9.5625 12.725C9.65417 12.9083 9.80833 13 10.025 13H17.975C18.1917 13 18.3458 12.9083 18.4375 12.725C18.5292 12.5417 18.5083 12.3667 18.375 12.2L15.95 9.025C15.85 8.89167 15.7167 8.825 15.55 8.825C15.3833 8.825 15.25 8.89167 15.15 9.025L13.25 11.5Z" fill="currentColor"></path></svg></span>
+                    <div className="profile-settings_list-text">
+                        <h3>Archivos, enlaces y documents</h3>
+                    </div>
+                    <span className="profile-settings_list-number">74</span>
+                </div>
+                <div className="profile-settings_list">
+                    { /* Ícono Destacadas */}
+                    <span aria-hidden="true" data-icon="star-refreshed" class=""><svg viewBox="0 0 24 24" height="24" width="24" preserveAspectRatio="xMidYMid meet" class="xhslqc4" fill="none"><title>star-refreshed</title><path fill-rule="evenodd" clip-rule="evenodd" d="M12.0001 5.5563L10.4474 9.20853C10.2737 9.61713 9.88857 9.89642 9.44622 9.9346L5.45091 10.2794L8.46629 12.8783C8.80433 13.1697 8.95276 13.6246 8.85162 14.0593L7.95108 17.9296L11.3829 15.8715C11.7628 15.6437 12.2373 15.6437 12.6172 15.8715L16.049 17.9296L15.1485 14.0593C15.0474 13.6246 15.1958 13.1697 15.5338 12.8783L18.5492 10.2794L14.5539 9.9346C14.1115 9.89642 13.7264 9.61713 13.5527 9.20853L12.0001 5.5563ZM10.8957 3.04204C11.3098 2.06802 12.6903 2.06802 13.1044 3.04204L15.2051 7.98336L20.6131 8.45006C21.6713 8.54138 22.0979 9.86115 21.2933 10.5546L17.2061 14.0773L18.4246 19.3142C18.6647 20.3462 17.5473 21.1602 16.6387 20.6153L12.0001 17.8335L7.36144 20.6153C6.4528 21.1602 5.33537 20.3462 5.57548 19.3142L6.79399 14.0773L2.70679 10.5546C1.90226 9.86116 2.32885 8.54138 3.38705 8.45006L8.79502 7.98336L10.8957 3.04204Z" fill="currentColor"></path></svg></span>
+                    <div className="profile-settings_list-text">
+                        <h3>Mensajes destacados</h3>
+                    </div>
+                </div>
+                <div className="profile-settings_list">
+                    { /* Ícono Notificaciones */}
+                    <span aria-hidden="true" data-icon="unmute-notifications-refreshed" className=""><svg viewBox="0 0 24 24" height="24" width="24" preserveAspectRatio="xMidYMid meet" className="" fill="none"><title>unmute-notifications-refreshed</title><path d="M5 19C4.44772 19 4 18.5523 4 18C4 17.4477 4.44772 17 5 17H6V10C6 8.61667 6.41667 7.3875 7.25 6.3125C8.08333 5.2375 9.16667 4.53333 10.5 4.2V3.5C10.5 3.08333 10.6458 2.72917 10.9375 2.4375C11.2292 2.14583 11.5833 2 12 2C12.4167 2 12.7708 2.14583 13.0625 2.4375C13.3542 2.72917 13.5 3.08333 13.5 3.5V4.2C14.8333 4.53333 15.9167 5.2375 16.75 6.3125C17.5833 7.3875 18 8.61667 18 10V17H19C19.5523 17 20 17.4477 20 18C20 18.5523 19.5523 19 19 19H5ZM12 22C11.45 22 10.9792 21.8042 10.5875 21.4125C10.1958 21.0208 10 20.55 10 20H14C14 20.55 13.8042 21.0208 13.4125 21.4125C13.0208 21.8042 12.55 22 12 22ZM8 17H16V10C16 8.9 15.6083 7.95833 14.825 7.175C14.0417 6.39167 13.1 6 12 6C10.9 6 9.95833 6.39167 9.175 7.175C8.39167 7.95833 8 8.9 8 10V17Z" fill="currentColor"></path></svg></span>
+                    <div className="profile-settings_list-text">
+                        <h3>Silenciar notificaciones</h3>
+                    </div>
+                    <button className="btn-notifications" />
+                </div>
+                <div className="profile-settings_list">
+                    { /* Ícono Mensajes Temporales */}
+                    <span aria-hidden="true"><svg viewBox="0 0 24 24" height="20" preserveAspectRatio="xMidYMid meet" className="xhslqc4" fill="none"><title>wds-ic-disappearing-messages</title><path d="M12 2C6.47715 2 2 6.47715 2 12C2 17.5228 6.47715 22 12 22C12.0547 22 12.1094 21.9996 12.1639 21.9987C12.7775 21.9888 13.2669 21.4834 13.257 20.8698C13.2471 20.2563 12.7417 19.7669 12.1281 19.7767C12.0855 19.7774 12.0428 19.7778 12 19.7778C7.70445 19.7778 4.22222 16.2955 4.22222 12C4.22222 7.70445 7.70445 4.22222 12 4.22222C12.0428 4.22222 12.0855 4.22257 12.1281 4.22325C12.7417 4.23314 13.2471 3.74375 13.257 3.13018C13.2669 2.51661 12.7775 2.0112 12.1639 2.00132C12.1094 2.00044 12.0547 2 12 2Z" fill="currentColor"></path><path d="M16.8592 3.25814C16.3231 2.95957 15.6465 3.15213 15.3479 3.68825C15.0493 4.22437 15.2419 4.90102 15.778 5.19959C15.8522 5.24089 15.9256 5.28338 15.9983 5.32703C16.5243 5.643 17.2069 5.4727 17.5229 4.94665C17.8389 4.4206 17.6686 3.738 17.1425 3.42203C17.0491 3.36591 16.9546 3.31127 16.8592 3.25814Z" fill="currentColor"></path><path d="M19.0534 6.47712C19.5794 6.16115 20.262 6.33145 20.578 6.8575C20.6341 6.95093 20.6887 7.04537 20.7419 7.14077C21.0404 7.67689 20.8479 8.35353 20.3118 8.65211C19.7756 8.95068 19.099 8.75811 18.8004 8.22199C18.7591 8.14782 18.7166 8.07439 18.673 8.00173C18.357 7.47568 18.5273 6.79309 19.0534 6.47712Z" fill="currentColor"></path><path d="M21.9987 11.8361C21.9888 11.2225 21.4834 10.7331 20.8698 10.743C20.2563 10.7529 19.7669 11.2583 19.7767 11.8719C19.7774 11.9145 19.7778 11.9572 19.7778 12C19.7778 12.0428 19.7774 12.0855 19.7767 12.1281C19.7669 12.7417 20.2563 13.2471 20.8698 13.257C21.4834 13.2669 21.9888 12.7775 21.9987 12.1639C21.9996 12.1094 22 12.0547 22 12C22 11.9453 21.9996 11.8906 21.9987 11.8361Z" fill="currentColor"></path><path d="M20.3118 15.3479C20.8479 15.6465 21.0404 16.3231 20.7419 16.8592C20.6887 16.9546 20.6341 17.0491 20.578 17.1425C20.262 17.6686 19.5794 17.8389 19.0534 17.5229C18.5273 17.2069 18.357 16.5243 18.673 15.9983C18.7166 15.9256 18.7591 15.8522 18.8004 15.778C19.099 15.2419 19.7756 15.0493 20.3118 15.3479Z" fill="currentColor"></path><path d="M17.1425 20.578C17.6686 20.262 17.8389 19.5794 17.5229 19.0534C17.2069 18.5273 16.5243 18.357 15.9983 18.673C15.9256 18.7166 15.8522 18.7591 15.778 18.8004C15.2419 19.099 15.0493 19.7756 15.3479 20.3118C15.6465 20.8479 16.3231 21.0404 16.8592 20.7419C16.9546 20.6887 17.0491 20.6341 17.1425 20.578Z" fill="currentColor"></path><path d="M16.7811 7.6229C16.5556 7.39749 16.1988 7.37213 15.9438 7.5634L11.3327 11.0217C10.6836 11.5085 10.6161 12.4574 11.1899 13.0312L11.3728 13.2141C11.9465 13.7878 12.8954 13.7204 13.3823 13.0713L16.8406 8.46018C17.0318 8.20516 17.0065 7.84831 16.7811 7.6229Z" fill="currentColor"></path></svg></span>
+                    <div className="profile-settings_list-text">
+                        <h3>Mensajes temporales</h3>
+                        <span>Desactivados</span>
+                    </div>
+                </div>
+                <div className="profile-settings_list">
+                    { /* Ícono Seguridad */}
+                    <span aria-hidden="true"><svg viewBox="0 0 24 24" height="24" preserveAspectRatio="xMidYMid meet" className="xhslqc4" fill="none"><title>ic-security</title><path d="M12 19.9C13.6167 19.4 14.9667 18.4125 16.05 16.9375C17.1333 15.4625 17.7667 13.8167 17.95 12H12V4.12502L6 6.37502V11.55C6 11.6667 6.01667 11.8167 6.05 12H12V19.9ZM12 21.9C11.8833 21.9 11.775 21.8917 11.675 21.875C11.575 21.8584 11.475 21.8334 11.375 21.8C9.125 21.05 7.33333 19.6625 6 17.6375C4.66667 15.6125 4 13.4334 4 11.1V6.37502C4 5.95836 4.12083 5.58336 4.3625 5.25002C4.60417 4.91669 4.91667 4.67502 5.3 4.52502L11.3 2.27502C11.5333 2.19169 11.7667 2.15002 12 2.15002C12.2333 2.15002 12.4667 2.19169 12.7 2.27502L18.7 4.52502C19.0833 4.67502 19.3958 4.91669 19.6375 5.25002C19.8792 5.58336 20 5.95836 20 6.37502V11.1C20 13.4334 19.3333 15.6125 18 17.6375C16.6667 19.6625 14.875 21.05 12.625 21.8C12.525 21.8334 12.425 21.8584 12.325 21.875C12.225 21.8917 12.1167 21.9 12 21.9Z" fill="currentColor"></path></svg></span>
+                    <div className="profile-settings_list-text">
+                        <h3>Privacidad avanzada en el chat</h3>
+                        <span>Desactivado</span>
+                    </div>
+                </div>
+                <div className="profile-settings_list --cifrado">
+                    { /* Ícono Privacidad */}
+                    <span aria-hidden="true"><svg viewBox="0 0 24 24" height="24" width="24" preserveAspectRatio="xMidYMid meet" className="" fill="none"><title>ic-lock</title><path d="M6 22C5.45 22 4.97917 21.8042 4.5875 21.4125C4.19583 21.0208 4 20.55 4 20V10C4 9.45 4.19583 8.97917 4.5875 8.5875C4.97917 8.19583 5.45 8 6 8H7V6C7 4.61667 7.4875 3.4375 8.4625 2.4625C9.4375 1.4875 10.6167 1 12 1C13.3833 1 14.5625 1.4875 15.5375 2.4625C16.5125 3.4375 17 4.61667 17 6V8H18C18.55 8 19.0208 8.19583 19.4125 8.5875C19.8042 8.97917 20 9.45 20 10V20C20 20.55 19.8042 21.0208 19.4125 21.4125C19.0208 21.8042 18.55 22 18 22H6ZM6 20H18V10H6V20ZM12 17C12.55 17 13.0208 16.8042 13.4125 16.4125C13.8042 16.0208 14 15.55 14 15C14 14.45 13.8042 13.9792 13.4125 13.5875C13.0208 13.1958 12.55 13 12 13C11.45 13 10.9792 13.1958 10.5875 13.5875C10.1958 13.9792 10 14.45 10 15C10 15.55 10.1958 16.0208 10.5875 16.4125C10.9792 16.8042 11.45 17 12 17ZM9 8H15V6C15 5.16667 14.7083 4.45833 14.125 3.875C13.5417 3.29167 12.8333 3 12 3C11.1667 3 10.4583 3.29167 9.875 3.875C9.29167 4.45833 9 5.16667 9 6V8Z" fill="currentColor"></path></svg></span>
+                    <div className="profile-settings_list-text">
+                        <h3>Cifrado</h3>
+                        <span>Los mensajes están cifrados de extremo a extremo. Haz clic para verificarlo.</span>
+                    </div>
+                </div>
+                <div className="profile-sharing_group"></div>
+                <div className="profile-settings_list">
+                    { /* Ícono Favoritos */}
+                    <span aria-hidden="true" data-icon="favorite-refreshed" className=""><svg viewBox="0 0 24 24" height="24" width="24" preserveAspectRatio="xMidYMid meet" className="" fill="none"><title>favorite-refreshed</title><path fillRule="evenodd" clipRule="evenodd" d="M12 20.9951C11.7667 20.9951 11.5292 20.9534 11.2875 20.8701C11.0458 20.7867 10.8333 20.6534 10.65 20.4701L8.925 18.8951C7.15833 17.2784 5.5625 15.6742 4.1375 14.0826C2.7125 12.4909 2 10.7367 2 8.82007C2 7.2534 2.525 5.94507 3.575 4.89507C4.625 3.84507 5.93333 3.32007 7.5 3.32007C8.38333 3.32007 9.21667 3.50757 10 3.88257C10.7833 4.25757 11.45 4.77007 12 5.42007C12.55 4.77007 13.2167 4.25757 14 3.88257C14.7833 3.50757 15.6167 3.32007 16.5 3.32007C18.0667 3.32007 19.375 3.84507 20.425 4.89507C21.475 5.94507 22 7.2534 22 8.82007C22 10.7367 21.2917 12.4951 19.875 14.0951C18.4583 15.6951 16.85 17.3034 15.05 18.9201L13.35 20.4701C13.1667 20.6534 12.9542 20.7867 12.7125 20.8701C12.4708 20.9534 12.2333 20.9951 12 20.9951ZM11.05 7.42007C10.5667 6.73674 10.05 6.2159 9.5 5.85757C8.95 5.49924 8.28333 5.32007 7.5 5.32007C6.5 5.32007 5.66667 5.6534 5 6.32007C4.33333 6.98674 4 7.82007 4 8.82007C4 9.68674 4.30833 10.6076 4.925 11.5826C5.54167 12.5576 6.27917 13.5034 7.1375 14.4201C7.99583 15.3367 8.87917 16.1951 9.7875 16.9951C10.6958 17.7951 11.4333 18.4534 12 18.9701C12.5667 18.4534 13.3042 17.7951 14.2125 16.9951C15.1208 16.1951 16.0042 15.3367 16.8625 14.4201C17.7208 13.5034 18.4583 12.5576 19.075 11.5826C19.6917 10.6076 20 9.68674 20 8.82007C20 7.82007 19.6667 6.98674 19 6.32007C18.3333 5.6534 17.5 5.32007 16.5 5.32007C15.7167 5.32007 15.05 5.49924 14.5 5.85757C13.95 6.2159 13.4333 6.73674 12.95 7.42007C12.8333 7.58674 12.6917 7.71174 12.525 7.79507C12.3583 7.8784 12.1833 7.92007 12 7.92007C11.8167 7.92007 11.6417 7.8784 11.475 7.79507C11.3083 7.71174 11.1667 7.58674 11.05 7.42007Z" fill="currentColor"></path></svg></span>
+                    <div className="profile-settings_list-text">
+                        <h3>Añadir a Favoritos</h3>
+                    </div>
+                </div>
+                <div className="profile-settings_list">
+                    { /* Ícono Añadir */}
+                    <span aria-hidden="true" data-icon="list-people-refreshed" className=""><svg viewBox="0 0 24 24" height="24" width="24" preserveAspectRatio="xMidYMid meet" className="" fill="none"><title>list-people-refreshed</title><path fillRule="evenodd" clipRule="evenodd" d="M8 18.3813C7.45 18.3813 6.97917 18.1855 6.5875 17.7938C6.19583 17.4022 6 16.9313 6 16.3813V4.38135C6 3.83135 6.19583 3.36051 6.5875 2.96885C6.97917 2.57718 7.45 2.38135 8 2.38135H20C20.55 2.38135 21.0208 2.57718 21.4125 2.96885C21.8042 3.36051 22 3.83135 22 4.38135V16.3813C22 16.9313 21.8042 17.4022 21.4125 17.7938C21.0208 18.1855 20.55 18.3813 20 18.3813H8ZM15.7375 15.6313C16.2958 15.798 16.8167 16.048 17.3 16.3813H10.7C11.1833 16.048 11.7042 15.798 12.2625 15.6313C12.8208 15.4647 13.4 15.3813 14 15.3813C14.6 15.3813 15.1792 15.4647 15.7375 15.6313ZM4 22.3813C3.45 22.3813 2.97917 22.1855 2.5875 21.7938C2.19583 21.4022 2 20.9313 2 20.3813V7.38135C2 7.09801 2.09583 6.86051 2.2875 6.66885C2.47917 6.47718 2.71667 6.38135 3 6.38135C3.28333 6.38135 3.52083 6.47718 3.7125 6.66885C3.90417 6.86051 4 7.09801 4 7.38135V20.3813H17C17.2833 20.3813 17.5208 20.4772 17.7125 20.6688C17.9042 20.8605 18 21.098 18 21.3813C18 21.6647 17.9042 21.9022 17.7125 22.0938C17.5208 22.2855 17.2833 22.3813 17 22.3813H4ZM8 16.0843C8.69919 15.2911 9.5242 14.6568 10.475 14.1813C11.5417 13.648 12.7167 13.3813 14 13.3813C15.2833 13.3813 16.4583 13.648 17.525 14.1813C18.4758 14.6568 19.3008 15.2911 20 16.0843V4.38135H8V16.0843ZM16.125 11.0063C15.5417 11.5897 14.8333 11.8813 14 11.8813C13.1667 11.8813 12.4583 11.5897 11.875 11.0063C11.2917 10.423 11 9.71468 11 8.88135C11 8.04801 11.2917 7.33968 11.875 6.75635C12.4583 6.17301 13.1667 5.88135 14 5.88135C14.8333 5.88135 15.5417 6.17301 16.125 6.75635C16.7083 7.33968 17 8.04801 17 8.88135C17 9.71468 16.7083 10.423 16.125 11.0063ZM15 8.88135C15 9.43363 14.5523 9.88135 14 9.88135C13.4477 9.88135 13 9.43363 13 8.88135C13 8.32906 13.4477 7.88135 14 7.88135C14.5523 7.88135 15 8.32906 15 8.88135Z" fill="currentColor"></path></svg></span>
+                    <div className="profile-settings_list-text">
+                        <h3>Añadir a lista</h3>
+                    </div>
+                </div>
+                <div className="profile-settings_list --negativo">
+                    { /* Ícono Bloqueo */}
+                    <svg style={{ color: "#B80531" }} viewBox="0 0 24 24" height="24" width="24" preserveAspectRatio="xMidYMid meet" className="" fill="none"><title>ic-block</title><path d="M12 22C10.6167 22 9.31667 21.7375 8.1 21.2125C6.88333 20.6875 5.825 19.975 4.925 19.075C4.025 18.175 3.3125 17.1167 2.7875 15.9C2.2625 14.6833 2 13.3833 2 12C2 10.6167 2.2625 9.31667 2.7875 8.1C3.3125 6.88333 4.025 5.825 4.925 4.925C5.825 4.025 6.88333 3.3125 8.1 2.7875C9.31667 2.2625 10.6167 2 12 2C13.3833 2 14.6833 2.2625 15.9 2.7875C17.1167 3.3125 18.175 4.025 19.075 4.925C19.975 5.825 20.6875 6.88333 21.2125 8.1C21.7375 9.31667 22 10.6167 22 12C22 13.3833 21.7375 14.6833 21.2125 15.9C20.6875 17.1167 19.975 18.175 19.075 19.075C18.175 19.975 17.1167 20.6875 15.9 21.2125C14.6833 21.7375 13.3833 22 12 22ZM12 20C12.9 20 13.7667 19.8542 14.6 19.5625C15.4333 19.2708 16.2 18.85 16.9 18.3L5.7 7.1C5.15 7.8 4.72917 8.56667 4.4375 9.4C4.14583 10.2333 4 11.1 4 12C4 14.2333 4.775 16.125 6.325 17.675C7.875 19.225 9.76667 20 12 20ZM18.3 16.9C18.85 16.2 19.2708 15.4333 19.5625 14.6C19.8542 13.7667 20 12.9 20 12C20 9.76667 19.225 7.875 17.675 6.325C16.125 4.775 14.2333 4 12 4C11.1 4 10.2333 4.14583 9.4 4.4375C8.56667 4.72917 7.8 5.15 7.1 5.7L18.3 16.9Z" fill="currentColor"></path></svg>
+                    <div className="profile-settings_list-text">
+                        <h3 style={{ color: "#B80531" }}>Bloquear a</h3>
+                    </div>
+                </div>
+                <div className="profile-settings_list --negativo">
+                    { /* Ícono Reporte */}
+                    <svg style={{ color: "#B80531" }} viewBox="0 0 24 24" height="24" width="24" preserveAspectRatio="xMidYMid meet" className="" fill="none"><title>ic-thumb-down</title><path d="M3 16C2.46667 16 2 15.8 1.6 15.4C1.2 15 1 14.5333 1 14V12C1 11.8833 1.01667 11.7583 1.05 11.625C1.08333 11.4917 1.11667 11.3667 1.15 11.25L4.15 4.2C4.3 3.86667 4.55 3.58333 4.9 3.35C5.25 3.11667 5.61667 3 6 3H17V16L11 21.95C10.75 22.2 10.4542 22.3458 10.1125 22.3875C9.77083 22.4292 9.44167 22.3667 9.125 22.2C8.80833 22.0333 8.575 21.8 8.425 21.5C8.275 21.2 8.24167 20.8917 8.325 20.575L9.45 16H3ZM15 15.15V5H6L3 12V14H12L10.65 19.5L15 15.15ZM20 3C20.55 3 21.0208 3.19583 21.4125 3.5875C21.8042 3.97917 22 4.45 22 5V14C22 14.55 21.8042 15.0208 21.4125 15.4125C21.0208 15.8042 20.55 16 20 16H17V14H20V5H17V3H20Z" fill="currentColor"></path></svg>
+                    <div className="profile-settings_list-text">
+                        <h3 style={{ color: "#B80531" }}>Reportar a</h3>
+                    </div>
+                </div>
+                <div className="profile-settings_list --negativo" onClick={abrirModalConfirmarSalida} style={{ cursor: 'pointer', color: "#FDE5EA" }}>
+                    <svg style={{ color: "#B80531" }} viewBox="0 0 24 24" height="24" width="24" preserveAspectRatio="xMidYMid meet" fill="none"><title>delete-refreshed</title><path d="M7 21C6.45 21 5.97917 20.8042 5.5875 20.4125C5.19583 20.0208 5 19.55 5 19V6C4.44772 6 4 5.55228 4 5C4 4.44772 4.44772 4 5 4H9V3.5C9 3.22386 9.22386 3 9.5 3H14.5C14.7761 3 15 3.22386 15 3.5V4H19C19.5523 4 20 4.44772 20 5C20 5.55228 19.5523 6 19 6V19C19 19.55 18.8042 20.0208 18.4125 20.4125C18.0208 20.8042 17.55 21 17 21H7ZM17 6H7V19H17V6ZM9 16.5C9 16.7761 9.22386 17 9.5 17H10.5C10.7761 17 11 16.7761 11 16.5V8.5C11 8.22386 10.7761 8 10.5 8H9.5C9.22386 8 9 8.22386 9 8.5V16.5ZM13 16.5C13 16.7761 13.2239 17 13.5 17H14.5C14.7761 17 15 16.7761 15 16.5V8.5C15 8.22386 14.7761 8 14.5 8H13.5C13.2239 8 13 8.22386 13 8.5V16.5Z" fill="currentColor"></path></svg>
+                    <div className="profile-settings_list-text">
+                        <h3 style={{ color: "#B80531" }}>{esDueño ? 'Eliminar grupo' : 'Abandonar grupo'}</h3>
+                    </div>
+                </div>
+            </div>
+
+            {modalConfirmarSalida && (
+                <div style={modalStyles.overlay} onClick={cerrarModalConfirmarSalida}>
+                    <div style={modalStyles.modal} onClick={(e) => e.stopPropagation()}>
+                        <h3 style={{ marginBottom: '14px' }}>
+                            {esDueño ? 'Eliminar grupo' : 'Abandonar grupo'}
+                        </h3>
+                        <p style={{ fontSize: '14px', color: 'var(--dark-grey, #667781)', marginBottom: '4px' }}>
+                            {esDueño
+                                ? `¿Seguro que querés eliminar "${chat?.nombre}"? Esta acción no se puede deshacer.`
+                                : `¿Seguro que querés abandonar "${chat?.nombre}"?`}
+                        </p>
+                        {errorSalida && <p style={{ color: '#B80531', fontSize: '0.85rem', margin: '8px 0' }}>{errorSalida}</p>}
+                        <div style={{ display: 'flex', gap: '8px', marginTop: '14px' }}>
+                            <button style={modalStyles.btnDanger} onClick={handleEliminarAbandonar} disabled={procesandoSalida}>
+                                {procesandoSalida ? 'Procesando...' : (esDueño ? 'Eliminar' : 'Abandonar')}
+                            </button>
+                            <button style={modalStyles.btnSecondary} onClick={cerrarModalConfirmarSalida} disabled={procesandoSalida}>
+                                Cancelar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+        </div>
+    )
+}
+
+const modalStyles = {
+    overlay: {
+        position: 'fixed', inset: 0,
+        background: 'rgba(0,0,0,0.5)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        zIndex: 9999
+    },
+    modal: {
+        background: 'var(--panel-background, #fff)',
+        borderRadius: '30px',
+        width: '350px',
+        padding: '31px',
+        maxWidth: '90vw',
+        boxShadow: '0 8px 32px solid var(--mid-grey)',
+        display: 'flex',
+        flexDirection: 'column'
+    },
+    input: {
+        height: '45px',
+        width: '100%',
+        padding: '8px 12px',
+        borderRadius: '50px',
+        border: 'var(--soft-grey)',
+        marginBottom: '10px',
+        fontSize: '0.9rem',
+        boxSizing: 'border-box',
+        background: 'var(--input-background, #f0f0f0)'
+    },
+    btnPrimary: {
+        flex: 1,
+        padding: '15px 18px',
+        background: 'var(--light-green)',
+        color: 'solid #0000',
+        border: '1.1px solid var(--light-green)',
+        borderRadius: '30px',
+        cursor: 'pointer',
+        fontWeight: 600,
+        boxSizing: 'border-box'
+    },
+    btnSecondary: {
+        flex: 1,
+        padding: '15px 18px',
+        background: 'transparent',
+        border: '1.1px solid var(--mid-grey)',
+        borderRadius: '30px',
+        cursor: 'pointer',
+        fontWeight: 600,
+        boxSizing: 'border-box'
+    },
+    btnDanger: {
+        flex: 1,
+        padding: '15px 18px',
+        background: '#B80531',
+        color: '#fff',
+        border: '1.1px solid #B80531',
+        borderRadius: '30px',
+        cursor: 'pointer',
+        fontWeight: 600,
+        boxSizing: 'border-box'
+    }
+};
+
+export default Profile
