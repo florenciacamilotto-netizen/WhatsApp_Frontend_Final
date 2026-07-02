@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 import { useWorkspaces } from '../context/WorkspacesContext';
 import { MEMBER_WORKSPACE_ROLES } from '../constants/memberRoles';
+import '../Styles/Menu.css';
 
 function Menu({ onChatClick, darkMode, onToggleDarkMode, esOculto }) {
     const { logout, userData } = useContext(AuthContext);
@@ -16,8 +17,10 @@ function Menu({ onChatClick, darkMode, onToggleDarkMode, esOculto }) {
     const [menuAbierto, setMenuAbierto] = useState(false);
     const [filtroActivo, setFiltroActivo] = useState('todos');
     const [procesandoInvitacion, setProcesandoInvitacion] = useState(null);
+    const [invitacionARechazar, setInvitacionARechazar] = useState(null);
+    const [errorRechazarInvitacion, setErrorRechazarInvitacion] = useState('');
 
-    // --- Modal Crear Grupo ---
+    // (DUEÑO) CREAR GRUPO //
     const [modalCrear, setModalCrear] = useState(false);
     const [nuevoNombre, setNuevoNombre] = useState('');
     const [nuevaDesc, setNuevaDesc] = useState('');
@@ -25,7 +28,7 @@ function Menu({ onChatClick, darkMode, onToggleDarkMode, esOculto }) {
     const [creando, setCreando] = useState(false);
     const [errorCrear, setErrorCrear] = useState('');
 
-    // --- Filtros ---
+    /* Filtros */
     const workspacesFiltrados = workspaces.filter(ws => {
         const nombre = ws.workspace_nombre || ws.nombre || '';
         const coincide = busqueda === '' || nombre.toLowerCase().startsWith(busqueda.toLowerCase());
@@ -34,7 +37,7 @@ function Menu({ onChatClick, darkMode, onToggleDarkMode, esOculto }) {
         return false;
     });
 
-    // --- Crear grupo ---
+    // (DUEÑO) PROCESAR CREACIÓN DE GRUPO //
     async function handleCrearGrupo() {
         setErrorCrear('');
         if (!nuevoNombre.trim()) return setErrorCrear('El nombre es obligatorio.');
@@ -58,7 +61,7 @@ function Menu({ onChatClick, darkMode, onToggleDarkMode, esOculto }) {
         }
     }
 
-    // --- Aceptar / rechazar invitación ---
+    // ACEPTAR O RECHAZAR UNA INVITACIÓN //
     async function handleAceptarInvitacion(inv) {
         try {
             setProcesandoInvitacion(inv.workspace_id);
@@ -70,13 +73,25 @@ function Menu({ onChatClick, darkMode, onToggleDarkMode, esOculto }) {
         }
     }
 
-    async function handleRechazarInvitacion(inv) {
-        if (!window.confirm(`¿Rechazar la invitación a "${inv.workspace_nombre}"?`)) return;
+    function abrirModalRechazarInvitacion(inv) {
+        setErrorRechazarInvitacion('');
+        setInvitacionARechazar(inv);
+    }
+
+    function cerrarModalRechazarInvitacion() {
+        if (procesandoInvitacion) return;
+        setInvitacionARechazar(null);
+        setErrorRechazarInvitacion('');
+    }
+
+    async function handleRechazarInvitacion() {
         try {
-            setProcesandoInvitacion(inv.workspace_id);
-            await rechazarInvitacion(inv.workspace_id);
+            setProcesandoInvitacion(invitacionARechazar.workspace_id);
+            setErrorRechazarInvitacion('');
+            await rechazarInvitacion(invitacionARechazar.workspace_id);
+            setInvitacionARechazar(null);
         } catch (e) {
-            alert(e.message);
+            setErrorRechazarInvitacion(e.message);
         } finally {
             setProcesandoInvitacion(null);
         }
@@ -96,7 +111,7 @@ function Menu({ onChatClick, darkMode, onToggleDarkMode, esOculto }) {
 
     return (
         <div className={`menu-container ${darkMode ? 'dark-mode' : ''} ${esOculto ? 'menu-oculto' : ''}`}>
-            {/* ---- TOPBAR ---- */}
+            {/* Nombre APP */}
             <div className="menu-topbar">
                 <h1>WhatsApp</h1>
                 <div className="header-icons">
@@ -128,7 +143,7 @@ function Menu({ onChatClick, darkMode, onToggleDarkMode, esOculto }) {
                 </div>
             </div>
 
-            {/* ---- BUSCADOR ---- */}
+            {/* Buscador */}
             <div className="search-container_menu">
                 <div className="search-icon">
                     <svg viewBox="0 0 20 20" height="20" width="20" fill="none">
@@ -144,13 +159,13 @@ function Menu({ onChatClick, darkMode, onToggleDarkMode, esOculto }) {
                 />
             </div>
 
-            {/* ---- FILTROS ---- */}
+            {/* Filtros */}
             <div className="filter-container_menu">
                 <button className={`btn-filter ${filtroActivo === 'todos' ? 'btn-filter--active' : ''}`} onClick={() => setFiltroActivo('todos')}>Todos</button>
                 <button className={`btn-filter ${filtroActivo === 'grupos' ? 'btn-filter--active' : ''}`} onClick={() => setFiltroActivo('grupos')}>Grupos</button>
             </div>
 
-            {/* ---- INVITACIONES PENDIENTES ---- */}
+            {/* Invitaciones Pendientes */}
             {invitaciones.length > 0 && (
                 <div className="chats-list" style={{ borderBottom: '1px solid var(--mid-grey)', paddingBottom: '8px', marginBottom: '8px' }}>
                     <p style={{ fontSize: '0.8rem', fontWeight: 600, padding: '6px 12px', color: 'var(--mid-green)' }}>
@@ -169,24 +184,49 @@ function Menu({ onChatClick, darkMode, onToggleDarkMode, esOculto }) {
                                     <p>Te invitaron como {inv.member_rol}</p>
                                 </div>
                             </div>
-                            <div style={{ display: 'flex', gap: '6px', paddingRight: '4px' }}>
+                            <div style={{ display: 'flex', gap: '8px', paddingRight: '4px' }}>
                                 <button
                                     title="Aceptar"
                                     disabled={procesandoInvitacion === inv.workspace_id}
-                                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--mid-green)' }}
+                                    style={{
+                                        background: 'var(--mid-green)',
+                                        border: 'none',
+                                        borderRadius: '50%',
+                                        width: '32px',
+                                        height: '32px',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        cursor: 'pointer',
+                                        color: '#FAFAFA',
+                                        flexShrink: 0
+                                    }}
                                     onClick={() => handleAceptarInvitacion(inv)}
                                 >
-                                    <svg viewBox="0 0 24 24" height="20" width="20" fill="currentColor">
+                                    <svg viewBox="0 0 24 24" height="18" width="18" fill="currentColor">
                                         <path d="M9 16.17 4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" />
                                     </svg>
                                 </button>
                                 <button
                                     title="Rechazar"
                                     disabled={procesandoInvitacion === inv.workspace_id}
-                                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#B80531' }}
-                                    onClick={() => handleRechazarInvitacion(inv)}
+                                    style={{
+                                        background: '#B80531',
+                                        border: 'none',
+                                        borderRadius: '50%',
+                                        width: '32px',
+                                        height: '32px',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        cursor: 'pointer',
+                                        color: '#FAFAFA',
+                                        marginRight: '10px',
+                                        flexShrink: 0
+                                    }}
+                                    onClick={() => abrirModalRechazarInvitacion(inv)}
                                 >
-                                    <svg viewBox="0 0 24 24" height="20" width="20" fill="currentColor">
+                                    <svg viewBox="0 0 24 24" height="18" width="18" fill="currentColor">
                                         <path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z" />
                                     </svg>
                                 </button>
@@ -196,7 +236,7 @@ function Menu({ onChatClick, darkMode, onToggleDarkMode, esOculto }) {
                 </div>
             )}
 
-            {/* ---- LISTA DE GRUPOS ---- */}
+            {/* Lista Grupos */}
             {loading && <div className="no-results">Cargando grupos...</div>}
             {error && <div className="no-results" style={{ color: '#B80531' }}>{error}</div>}
             {!loading && workspacesFiltrados.length === 0 && (
@@ -225,21 +265,21 @@ function Menu({ onChatClick, darkMode, onToggleDarkMode, esOculto }) {
                 </div>
             )}
 
-            {/* ===== MODAL CREAR GRUPO ===== */}
+            {/* Modal Crear Grupo */}
             {modalCrear && (
-                <div style={styles.overlay}>
-                    <div style={styles.modal}>
+                <div className="modal-overlay">
+                    <div className="modal-content">
                         <h3 style={{ marginBottom: '17px', paddingLeft: '7px' }}>Nuevo grupo</h3>
 
                         <input
-                            className="modal-input"
+                            className="modal-input modal-input-style"
                             type="text"
                             placeholder="Nombre del grupo*"
                             value={nuevoNombre}
                             onChange={e => setNuevoNombre(e.target.value)}
                         />
                         <input
-                            className="modal-input"
+                            className="modal-input modal-input-style"
                             type="text"
                             placeholder="Descripción (opcional)"
                             value={nuevaDesc}
@@ -250,7 +290,7 @@ function Menu({ onChatClick, darkMode, onToggleDarkMode, esOculto }) {
                         {emailsInvitados.map((email, i) => (
                             <div key={i} style={{ display: 'flex', gap: '6px', marginBottom: '10px' }}>
                                 <input
-                                    className="modal-input"
+                                    className="modal-input modal-input-style"
                                     style={{ marginBottom: 0, flex: 1 }}
                                     type="email"
                                     placeholder={`Email usuario ${i + 1}`}
@@ -262,7 +302,7 @@ function Menu({ onChatClick, darkMode, onToggleDarkMode, esOculto }) {
                                     }}
                                 />
                                 {emailsInvitados.length > 2 && (
-                                    <button style={styles.btnDanger} onClick={() => setEmailsInvitados(emailsInvitados.filter((_, j) => j !== i))}>✕</button>
+                                    <button className="modal-btn-danger" onClick={() => setEmailsInvitados(emailsInvitados.filter((_, j) => j !== i))}>✕</button>
                                 )}
                             </div>
                         ))}
@@ -277,7 +317,7 @@ function Menu({ onChatClick, darkMode, onToggleDarkMode, esOculto }) {
                         {errorCrear && <p style={{ color: '#B80531', fontSize: '0.85rem', margin: '8px 0' }}>{errorCrear}</p>}
 
                         <div style={{ display: 'flex', gap: '8px', marginTop: '14px' }}>
-                            <button style={styles.btnPrimary} onClick={handleCrearGrupo} disabled={creando}>
+                            <button className="modal-btn-primary" onClick={handleCrearGrupo} disabled={creando}>
                                 {creando ? 'Creando...' : 'Crear grupo'}
                             </button>
                             <button className='btnSecondary' onClick={() => { setModalCrear(false); setErrorCrear(''); }}>
@@ -288,72 +328,37 @@ function Menu({ onChatClick, darkMode, onToggleDarkMode, esOculto }) {
                 </div>
             )}
 
+            {/* Modal Rechazar Invitación */}
+            {invitacionARechazar && (
+                <div className="modal-overlay" onClick={cerrarModalRechazarInvitacion}>
+                    <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+                        <h3>Rechazar invitación</h3>
+                        <p style={{ fontSize: '14px', color: 'var(--dark-grey, #667781)', marginBottom: '4px' }}>
+                            ¿Seguro que querés rechazar la invitación a "{invitacionARechazar.workspace_nombre}"?
+                        </p>
+                        {errorRechazarInvitacion && <p className="modal-error-text">{errorRechazarInvitacion}</p>}
+                        <div className="modal-actions-container">
+                            <button
+                                className="modal-btn-danger-full"
+                                onClick={handleRechazarInvitacion}
+                                disabled={procesandoInvitacion === invitacionARechazar.workspace_id}
+                            >
+                                {procesandoInvitacion === invitacionARechazar.workspace_id ? 'Procesando...' : 'Rechazar'}
+                            </button>
+                            <button
+                                className="modal-btn-secondary"
+                                onClick={cerrarModalRechazarInvitacion}
+                                disabled={procesandoInvitacion === invitacionARechazar.workspace_id}
+                            >
+                                Cancelar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
         </div>
     );
 }
-
-const styles = {
-    overlay: {
-        position: 'fixed', inset: 0,
-        background: 'rgba(0,0,0,0.5)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        zIndex: 9999
-    },
-    modal: {
-        background: 'var(--panel-background, #fff)',
-        borderRadius: '30px',
-        width: '350px',
-        padding: '35px',
-        maxWidth: '90vw',
-        boxShadow: '0 8px 32px solid var(--mid-grey)',
-        display: 'flex',
-        flexDirection: 'column'
-    },
-    input: {
-        height: '45px',
-        width: '100%',
-        padding: '8px 12px',
-        borderRadius: '50px',
-        border: 'none',
-        outline: 'none',
-        marginBottom: '10px',
-        fontSize: '0.9rem',
-        boxSizing: 'border-box',
-        background: 'var(--input-background, #f0f0f0)'
-    },
-    btnPrimary: {
-        flex: 1,
-        padding: '15px 18px',
-        background: 'var(--light-green)',
-        color: 'solid #0000',
-        border: '1.1px solid var(--light-green)', // was 'none'
-        borderRadius: '30px',
-        cursor: 'pointer',
-        fontWeight: 600,
-        boxSizing: 'border-box' // <-- add this
-    },
-    btnSecondary: {
-        flex: 1,
-        padding: '15px 18px',
-        background: 'transparent',
-        border: '1.1px solid var(--mid-grey)',
-        borderRadius: '30px', cursor: 'pointer',
-        fontWeight: 600, // optional, for visual consistency
-        boxSizing: 'border-box' // <-- add this
-        // remove marginBottom: '6px' — that's pushing it down/changing its effective box, not relevant to width/height equality, but it's an odd leftover here
-    },
-    btnDanger: {
-        padding: '6px 10px',
-        background: '#B80531',
-        color: '#fff',
-        border: 'none',
-        borderRadius: '100px',
-        cursor: 'pointer',
-        height: '45px',
-        width: '45px'
-    }
-};
 
 export default Menu;

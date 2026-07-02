@@ -1,18 +1,36 @@
-import React, { useState, useEffect, useContext } from 'react';
+import React, { useState, useEffect, useContext, useRef } from 'react';
 import EmojiPicker from 'emoji-picker-react';
 import Profile from './Profile';
 import { MEMBER_WORKSPACE_ROLES } from '../constants/memberRoles';
 import { useWorkspaces } from '../context/WorkspacesContext';
 import { AuthContext } from '../context/AuthContext';
+import { getMessages, getNewMessages, sendMessage } from '../services/messageService';
+import '../Styles/Chat.css';
+
+// INTERVALO DE POLLING PARA MENSAJES NUEVOS (MS) //
+const POLLING_INTERVAL_MS = 3000;
+
+// NORMALIZA UN MENSAJE DEL BACKEND AL FORMATO QUE USA LA UI //
+function normalizarMensaje(m, miUserId) {
+    const autorId = m.user_id;
+    const fecha = m.message_fecha_creacion ?? new Date().toISOString();
+    return {
+        id: m.message_id,
+        texto: m.message_contenido ?? '',
+        hora: new Date(fecha).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        tipo: autorId && miUserId && String(autorId) === String(miUserId) ? 'sent' : 'received',
+        autorNombre: m.user_nombre,
+        fecha
+    };
+}
 
 const AddEmoji = ({ onEmojiSelect }) => {
     const [showPicker, setShowPicker] = useState(false);
     return (
-        <div className="emoji-wrapper" style={{ position: 'relative' }}>
+        <div className="emoji-wrapper">
             <button
                 className="btn-emoji-inside"
                 onClick={() => setShowPicker(!showPicker)}
-                style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
             >
                 <svg viewBox="0 0 24 24" height="24" width="24" preserveAspectRatio="xMidYMid meet" fill="none">
                     <title>wds-ic-sticker-smiley</title>
@@ -22,7 +40,7 @@ const AddEmoji = ({ onEmojiSelect }) => {
                 </svg>
             </button>
             {showPicker && (
-                <div style={{ position: 'absolute', bottom: '45px', left: '0', zIndex: 1000 }}>
+                <div className="emoji-picker-popover">
                     <EmojiPicker onEmojiClick={(emojiData) => {
                         onEmojiSelect(emojiData.emoji);
                         setShowPicker(false);
@@ -36,17 +54,17 @@ const AddEmoji = ({ onEmojiSelect }) => {
 function Chat({ chat, onVolver }) {
     const [nuevoMensaje, setNuevoMensaje] = useState('');
     const [listaMensajes, setListaMensajes] = useState([]);
+    const [cargandoMensajes, setCargandoMensajes] = useState(false);
+    const [errorMensajes, setErrorMensajes] = useState('');
+    const [enviando, setEnviando] = useState(false);
+    const ultimaFechaRef = useRef(null);
     const [mostrarPerfil, setMostrarPerfil] = useState(false);
-    const { abandonarGrupo, expulsarMiembro, degradarme, editarGrupo } = useWorkspaces();
+    const { expulsarMiembro, degradarme, editarGrupo } = useWorkspaces();
     const { userData } = useContext(AuthContext);
 
-    // Nombre del grupo mostrado en el header (permite reflejar la edición al instante)
     const [nombreGrupo, setNombreGrupo] = useState(chat?.nombre || '');
-
-    // Menú de opciones (tres puntos) del header
     const [menuOpcionesAbierto, setMenuOpcionesAbierto] = useState(false);
 
-    // Modal para editar el nombre del grupo
     const [modalEditarNombre, setModalEditarNombre] = useState(false);
     const [nombreEditado, setNombreEditado] = useState('');
     const [guardandoNombre, setGuardandoNombre] = useState(false);
@@ -55,12 +73,26 @@ function Chat({ chat, onVolver }) {
     const togglePerfil = () => setMostrarPerfil(prev => !prev);
     const cerrarPerfil = () => setMostrarPerfil(false);
 
-    // Determinar si el usuario puede escribir (solo Dueño y Admin)
-    const puedeEscribir = chat?.rol === MEMBER_WORKSPACE_ROLES.OWNER ||
-                          chat?.rol === MEMBER_WORKSPACE_ROLES.ADMIN;
-
-    // Solo el Dueño puede editar el nombre del grupo
+    const puedeEscribir = chat?.rol === MEMBER_WORKSPACE_ROLES.OWNER;
     const esDueño = chat?.rol === MEMBER_WORKSPACE_ROLES.OWNER;
+
+    // CARGAR EL HISTORIAL DE MENSAJES DEL GRUPO DESDE EL BACKEND //
+    async function cargarHistorial(workspace_id) {
+        try {
+            setCargandoMensajes(true);
+            setErrorMensajes('');
+            const res = await getMessages(workspace_id);
+            const mensajes = (res?.data?.messages || []).map(m => normalizarMensaje(m, userData?.id));
+            setListaMensajes(mensajes);
+            ultimaFechaRef.current = mensajes.length
+                ? mensajes[mensajes.length - 1].fecha
+                : new Date().toISOString();
+        } catch (e) {
+            setErrorMensajes(e.message);
+        } finally {
+            setCargandoMensajes(false);
+        }
+    }
 
     useEffect(() => {
         if (chat) {
@@ -68,8 +100,36 @@ function Chat({ chat, onVolver }) {
             setMostrarPerfil(false);
             setNombreGrupo(chat?.nombre || '');
             setMenuOpcionesAbierto(false);
+            setErrorMensajes('');
+            ultimaFechaRef.current = null;
+            if (chat.workspace_id) cargarHistorial(chat.workspace_id);
         }
     }, [chat]);
+
+    // POLLING DE MENSAJES NUEVOS PARA QUE LLEGUEN LOS DE OTROS MIEMBROS //
+    useEffect(() => {
+        if (!chat?.workspace_id) return;
+
+        const intervalId = setInterval(async () => {
+            try {
+                const after = ultimaFechaRef.current || new Date().toISOString();
+                const res = await getNewMessages(chat.workspace_id, after);
+                const nuevos = (res?.data?.messages || []).map(m => normalizarMensaje(m, userData?.id));
+                if (nuevos.length > 0) {
+                    setListaMensajes(prev => {
+                        const idsExistentes = new Set(prev.map(m => m.id));
+                        const filtrados = nuevos.filter(m => !idsExistentes.has(m.id));
+                        return filtrados.length ? [...prev, ...filtrados] : prev;
+                    });
+                    ultimaFechaRef.current = nuevos[nuevos.length - 1].fecha;
+                }
+            } catch (e) {
+                console.error('Error al obtener mensajes nuevos:', e.message);
+            }
+        }, POLLING_INTERVAL_MS);
+
+        return () => clearInterval(intervalId);
+    }, [chat?.workspace_id, userData?.id]);
 
     function abrirModalEditarNombre() {
         setNombreEditado(nombreGrupo);
@@ -106,47 +166,46 @@ function Chat({ chat, onVolver }) {
         setNuevoMensaje(prev => prev + emoji);
     };
 
-    const enviarMensaje = () => {
-        if (!puedeEscribir) return;
-        if (nuevoMensaje.trim() === '') return;
-        const mensajeNuevo = {
-            id: Date.now(),
-            texto: nuevoMensaje,
-            hora: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-            tipo: 'sent'
-        };
-        setListaMensajes([...listaMensajes, mensajeNuevo]);
+    const enviarMensaje = async () => {
+        if (!puedeEscribir || enviando) return;
+        const texto = nuevoMensaje.trim();
+        if (texto === '') return;
+
+        // LIMPIAMOS EL INPUT ENSEGUIDA PARA QUE SE SIENTA RESPONSIVE //
         setNuevoMensaje('');
+
+        try {
+            setEnviando(true);
+            const res = await sendMessage(chat.workspace_id, texto);
+            const mensajeEnviado = res?.data?.message
+                ? normalizarMensaje(res.data.message, userData?.id)
+                : {
+                    id: Date.now(),
+                    texto,
+                    hora: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                    tipo: 'sent',
+                    fecha: new Date().toISOString()
+                };
+            setListaMensajes(prev => [...prev, mensajeEnviado]);
+            ultimaFechaRef.current = mensajeEnviado.fecha;
+        } catch (e) {
+            alert(e.message);
+            // SI FALLÓ EL ENVÍO, DEVOLVEMOS EL TEXTO AL INPUT //
+            setNuevoMensaje(texto);
+        } finally {
+            setEnviando(false);
+        }
     };
 
     const manejarEnter = (e) => {
         if (e.key === 'Enter') enviarMensaje();
     };
 
-    async function handleAbandonar() {
-        if (!window.confirm('¿Querés abandonar este grupo?')) return;
-        try {
-            await abandonarGrupo(chat.workspace_id);
-            onVolver();
-        } catch (e) {
-            alert(e.message);
-        }
-    }
-
-    async function handleDegradarse() {
-        if (!window.confirm('¿Querés dejar de ser Admin y volver a ser Usuario?')) return;
-        try {
-            await degradarme(chat.workspace_id);
-            onVolver();
-        } catch (e) {
-            alert(e.message);
-        }
-    }
-
     return (
-        <div style={{ display: 'flex', width: '100%', height: '100%' }} className={mostrarPerfil ? 'perfil-abierto' : ''}>
-            <div className="chat-container" style={{ flex: 1, minWidth: 0 }}>
-                {/* ---- HEADER ---- */}
+        <div className={`chat-main-wrapper ${mostrarPerfil ? 'perfil-abierto' : ''}`}>
+            <div className="chat-container">
+
+                {/* Header */}
                 <div className="chat-header">
                     <button className="btn-volver" onClick={onVolver}>
                         <svg viewBox="0 0 24 24" height="24" width="24" fill="none">
@@ -154,39 +213,22 @@ function Chat({ chat, onVolver }) {
                         </svg>
                     </button>
 
-                    <div className="chat-header_image" onClick={togglePerfil} style={{ cursor: 'pointer' }}>
-                        <img src={chat?.imagen || '/foto-grupo.jpg'} alt={nombreGrupo}
-                            style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '100%' }} />
+                    <div className="chat-header_image" onClick={togglePerfil}>
+                        <img src={chat?.imagen || '/foto-grupo.jpg'} alt={nombreGrupo} />
                     </div>
 
-                    <div className="chat-header_info" onClick={togglePerfil} style={{ cursor: 'pointer', flex: 1 }}>
+                    <div className="chat-header_info" onClick={togglePerfil}>
                         <h4>{nombreGrupo || 'Grupo'}</h4>
                         <div className="chat-header_subtitle">
                             <span>
                                 {chat?.rol === MEMBER_WORKSPACE_ROLES.OWNER && 'Sos el Dueño · '}
-                                {chat?.rol === MEMBER_WORKSPACE_ROLES.ADMIN && 'Sos Admin · '}
                                 {chat?.rol === MEMBER_WORKSPACE_ROLES.USER && 'Solo lectura · '}
                                 Hacé click para ver la info del grupo
                             </span>
                         </div>
                     </div>
 
-                    {/* Acciones de rol en el header */}
                     <div className="header-icons">
-                        {chat?.rol === MEMBER_WORKSPACE_ROLES.ADMIN && (
-                            <button title="Dejar de ser Admin" onClick={handleDegradarse}
-                                style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#888', fontSize: '0.75rem', padding: '4px 8px' }}>
-                                Renunciar a Admin
-                            </button>
-                        )}
-                        {(chat?.rol === MEMBER_WORKSPACE_ROLES.ADMIN || chat?.rol === MEMBER_WORKSPACE_ROLES.USER) && (
-                            <button title="Abandonar grupo" onClick={handleAbandonar}
-                                style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#B80531' }}>
-                                <svg viewBox="0 0 24 24" height="20" width="20" fill="currentColor">
-                                    <path d="M13 3h-2v10h2V3zm4.83 2.17l-1.42 1.42C17.99 7.86 19 9.81 19 12c0 3.87-3.13 7-7 7s-7-3.13-7-7c0-2.19 1.01-4.14 2.58-5.42L6.17 5.17C4.23 6.82 3 9.26 3 12c0 4.97 4.03 9 9 9s9-4.03 9-9c0-2.74-1.23-5.18-3.17-6.83z" />
-                                </svg>
-                            </button>
-                        )}
                         <button>
                             <svg viewBox="0 0 24 24" height="24" width="24" preserveAspectRatio="xMidYMid meet" fill="none">
                                 <path d="M9.5 16C7.68333 16 6.14583 15.3708 4.8875 14.1125C3.62917 12.8542 3 11.3167 3 9.5C3 7.68333 3.62917 6.14583 4.8875 4.8875C6.14583 3.62917 7.68333 3 9.5 3C11.3167 3 12.8542 3.62917 14.1125 4.8875C15.3708 6.14583 16 7.68333 16 9.5C16 10.2333 15.8833 10.925 15.65 11.575C15.4167 12.225 15.1 12.8 14.7 13.3L20.3 18.9C20.4833 19.0833 20.575 19.3167 20.575 19.6C20.575 19.8833 20.4833 20.1167 20.3 20.3C20.1167 20.4833 19.8833 20.575 19.6 20.575C19.3167 20.575 19.0833 20.4833 18.9 20.3L13.3 14.7C12.8 15.1 12.225 15.4167 11.575 15.65C10.925 15.8833 10.2333 16 9.5 16ZM9.5 14C10.75 14 11.8125 13.5625 12.6875 12.6875C13.5625 11.8125 14 10.75 14 9.5C14 8.25 13.5625 7.1875 12.6875 6.3125C11.8125 5.4375 10.75 5 9.5 5C8.25 5 7.1875 5.4375 6.3125 6.3125C5.4375 7.1875 5 8.25 5 9.5C5 10.75 5.4375 11.8125 6.3125 12.6875C7.1875 13.5625 8.25 14 9.5 14Z" fill="currentColor"></path>
@@ -202,11 +244,11 @@ function Chat({ chat, onVolver }) {
                                 <div className="dropdown-menu">
                                     {esDueño && (
                                         <div className="dropdown-item" onClick={abrirModalEditarNombre}>
-                                            Editar nombre del grupo
+                                            Editar nombre
                                         </div>
                                     )}
                                     <div className="dropdown-item" onClick={() => { togglePerfil(); setMenuOpcionesAbierto(false); }}>
-                                        Ver info. del grupo
+                                        Ver en detalle
                                     </div>
                                 </div>
                             )}
@@ -214,7 +256,7 @@ function Chat({ chat, onVolver }) {
                     </div>
                 </div>
 
-                {/* ---- MENSAJES ---- */}
+                {/* Mensajes */}
                 <div className="chat-data">
                     <span className="chat-day">Hoy</span>
                     <div className="chat-disclaimer">
@@ -228,40 +270,58 @@ function Chat({ chat, onVolver }) {
                         </div>
                     </div>
 
-                    {/* Aviso de solo lectura para Usuarios */}
                     {!puedeEscribir && (
-                        <div style={{
-                            textAlign: 'center', margin: '12px auto',
-                            background: 'rgba(0,0,0,0.06)', borderRadius: '8px',
-                            padding: '8px 16px', fontSize: '0.82rem', color: '#888',
-                            maxWidth: '320px'
-                        }}>
-                            Solo los Administradores y el Dueño pueden enviar mensajes en este grupo.
+                        <div className="chat-read-only-banner">
+                            Solo el Dueño pueden enviar mensajes en este grupo.
                         </div>
+                    )}
+
+                    {errorMensajes && (
+                        <div className="chat-read-only-banner">
+                            {errorMensajes}
+                        </div>
+                    )}
+
+                    {cargandoMensajes && listaMensajes.length === 0 && (
+                        <span className="chat-day">Cargando mensajes...</span>
                     )}
 
                     <div className="chat-messages">
                         {listaMensajes.map((msg) => (
-                            <div key={msg.id} className={`messages messages-${msg.tipo}`}>
-                                <p>{msg.texto}</p>
-                                {msg.tipo === 'sent' ? (
-                                    <div className="message-check">
-                                        <span className="message-time">{msg.hora} </span>
-                                        <span aria-hidden="false" aria-label=" Entregado ">
-                                            <svg viewBox="0 0 16 11" height="11" width="16" preserveAspectRatio="xMidYMid meet" fill="none">
-                                                <path d="M11.0714 0.652832C10.991 0.585124 10.8894 0.55127 10.7667 0.55127C10.6186 0.55127 10.4916 0.610514 10.3858 0.729004L4.19688 8.36523L1.79112 6.09277C1.7488 6.04622 1.69802 6.01025 1.63877 5.98486C1.57953 5.95947 1.51817 5.94678 1.45469 5.94678C1.32351 5.94678 1.20925 5.99544 1.11192 6.09277L0.800883 6.40381C0.707784 6.49268 0.661235 6.60482 0.661235 6.74023C0.661235 6.87565 0.707784 6.98991 0.800883 7.08301L3.79698 10.0791C3.94509 10.2145 4.11224 10.2822 4.29844 10.2822C4.40424 10.2822 4.5058 10.259 4.60313 10.2124C4.70046 10.1659 4.78086 10.1003 4.84434 10.0156L11.4903 1.59863C11.5623 1.5013 11.5982 1.40186 11.5982 1.30029C11.5982 1.14372 11.5348 1.01888 11.4078 0.925781L11.0714 0.652832ZM8.6212 8.32715C8.43077 8.20866 8.2488 8.09017 8.0753 7.97168C7.99489 7.89128 7.8891 7.85107 7.75791 7.85107C7.6098 7.85107 7.4892 7.90397 7.3961 8.00977L7.10411 8.33984C7.01947 8.43717 6.97715 8.54508 6.97715 8.66357C6.97715 8.79476 7.0237 8.90902 7.1168 9.00635L8.1959 10.0791C8.33132 10.2145 8.49636 10.2822 8.69102 10.2822C8.79681 10.2822 8.89838 10.259 8.99571 10.2124C9.09304 10.1659 9.17556 10.1003 9.24327 10.0156L15.8639 1.62402C15.9358 1.53939 15.9718 1.43994 15.9718 1.32568C15.9718 1.1818 15.9125 1.05697 15.794 0.951172L15.4386 0.678223C15.3582 0.610514 15.2587 0.57666 15.1402 0.57666C14.9964 0.57666 14.8715 0.635905 14.7657 0.754395L8.6212 8.32715Z" fill="currentColor"></path>
-                                            </svg>
-                                        </span>
-                                    </div>
-                                ) : (
-                                    <span className="message-time">{msg.hora}</span>
+                            <div key={msg.id} className={`message-row message-row-${msg.tipo}`}>
+                                {msg.tipo === 'received' && (
+                                    <img
+                                        className="message-avatar"
+                                        src="/contacto-4.png"
+                                        alt={msg.autorNombre || 'Miembro'}
+                                    />
                                 )}
+                                <div className="message-col">
+                                    {msg.tipo === 'received' && msg.autorNombre && (
+                                        <span className="message-sender-name">{msg.autorNombre}</span>
+                                    )}
+                                    <div className={`messages messages-${msg.tipo}`}>
+                                        <p>{msg.texto}</p>
+                                        {msg.tipo === 'sent' ? (
+                                            <div className="message-check">
+                                                <span className="message-time">{msg.hora} </span>
+                                                <span aria-hidden="false" aria-label=" Entregado ">
+                                                    <svg viewBox="0 0 16 11" height="11" width="16" preserveAspectRatio="xMidYMid meet" fill="none">
+                                                        <path d="M11.0714 0.652832C10.991 0.585124 10.8894 0.55127 10.7667 0.55127C10.6186 0.55127 10.4916 0.610514 10.3858 0.729004L4.19688 8.36523L1.79112 6.09277C1.7488 6.04622 1.69802 6.01025 1.63877 5.98486C1.57953 5.95947 1.51817 5.94678 1.45469 5.94678C1.32351 5.94678 1.20925 5.99544 1.11192 6.09277L0.800883 6.40381C0.707784 6.49268 0.661235 6.60482 0.661235 6.74023C0.661235 6.87565 0.707784 6.98991 0.800883 7.08301L3.79698 10.0791C3.94509 10.2145 4.11224 10.2822 4.29844 10.2822C4.40424 10.2822 4.5058 10.259 4.60313 10.2124C4.70046 10.1659 4.78086 10.1003 4.84434 10.0156L11.4903 1.59863C11.5623 1.5013 11.5982 1.40186 11.5982 1.30029C11.5982 1.14372 11.5348 1.01888 11.4078 0.925781L11.0714 0.652832ZM8.6212 8.32715C8.43077 8.20866 8.2488 8.09017 8.0753 7.97168C7.99489 7.89128 7.8891 7.85107 7.75791 7.85107C7.6098 7.85107 7.4892 7.90397 7.3961 8.00977L7.10411 8.33984C7.01947 8.43717 6.97715 8.54508 6.97715 8.66357C6.97715 8.79476 7.0237 8.90902 7.1168 9.00635L8.1959 10.0791C8.33132 10.2145 8.49636 10.2822 8.69102 10.2822C8.79681 10.2822 8.89838 10.259 8.99571 10.2124C9.09304 10.1659 9.17556 10.1003 9.24327 10.0156L15.8639 1.62402C15.9358 1.53939 15.9718 1.43994 15.9718 1.32568C15.9718 1.1818 15.9125 1.05697 15.794 0.951172L15.4386 0.678223C15.3582 0.610514 15.2587 0.57666 15.1402 0.57666C14.9964 0.57666 14.8715 0.635905 14.7657 0.754395L8.6212 8.32715Z" fill="currentColor"></path>
+                                                    </svg>
+                                                </span>
+                                            </div>
+                                        ) : (
+                                            <span className="message-time">{msg.hora}</span>
+                                        )}
+                                    </div>
+                                </div>
                             </div>
                         ))}
                     </div>
                 </div>
 
-                {/* ---- INPUT (bloqueado para Usuarios) ---- */}
+                {/* Input */}
                 <div className="chat-input">
                     {puedeEscribir ? (
                         <div className="input-wrapper">
@@ -281,18 +341,14 @@ function Chat({ chat, onVolver }) {
                                 onChange={(e) => setNuevoMensaje(e.target.value)}
                                 onKeyDown={manejarEnter}
                             />
-                            <button className="btn-send" onClick={enviarMensaje} style={{ cursor: 'pointer' }}>
+                            <button className="btn-send" onClick={enviarMensaje} disabled={enviando}>
                                 <svg viewBox="0 0 24 24" height="24" width="24" preserveAspectRatio="xMidYMid meet" fill="none">
                                     <path d="M5.4 19.425C5.06667 19.5583 4.75 19.5291 4.45 19.3375C4.15 19.1458 4 18.8666 4 18.5V14L12 12L4 9.99997V5.49997C4 5.1333 4.15 4.85414 4.45 4.66247C4.75 4.4708 5.06667 4.44164 5.4 4.57497L20.8 11.075C21.2167 11.2583 21.425 11.5666 21.425 12C21.425 12.4333 21.2167 12.7416 20.8 12.925L5.4 19.425Z" fill="currentColor"></path>
                                 </svg>
                             </button>
                         </div>
                     ) : (
-                        <div style={{
-                            textAlign: 'center', padding: '14px',
-                            color: '#888', fontSize: '0.85rem',
-                            borderTop: '1px solid var(--border-color, #e0e0e0)'
-                        }}>
+                        <div className="chat-input-disabled-banner">
                             No tenés permisos para escribir en este grupo
                         </div>
                     )}
@@ -304,32 +360,32 @@ function Chat({ chat, onVolver }) {
             )}
 
             {modalEditarNombre && (
-                <div style={editarNombreStyles.overlay} onClick={cerrarModalEditarNombre}>
-                    <div style={editarNombreStyles.modal} onClick={(e) => e.stopPropagation()}>
-                        <h3 style={{ marginBottom: '17px' }}>Editar nombre</h3>
+                <div className="modal-overlay" onClick={cerrarModalEditarNombre}>
+                    <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+                        <h3>Editar nombre</h3>
                         <input
-                            style={editarNombreStyles.input}
+                            className="modal-input"
                             type="text"
                             placeholder="Nombre del grupo"
                             value={nombreEditado}
                             onChange={(e) => setNombreEditado(e.target.value)}
                             autoFocus
                         />
-                        {errorNombre && <p style={{ color: '#B80531', fontSize: '0.85rem', margin: '8px 0' }}>{errorNombre}</p>}
-                        <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
+                        {errorNombre && <p className="modal-error-text">{errorNombre}</p>}
+                        <div className="modal-actions-container">
                             <button
-                                style={editarNombreStyles.btnSecondary}
-                                onClick={cerrarModalEditarNombre}
-                                disabled={guardandoNombre}
-                            >
-                                Cancelar
-                            </button>
-                            <button
-                                style={editarNombreStyles.btnPrimary}
+                                className="modal-btn-primary"
                                 onClick={handleGuardarNombre}
                                 disabled={guardandoNombre}
                             >
                                 {guardandoNombre ? 'Guardando...' : 'Guardar'}
+                            </button>
+                            <button
+                                className="modal-btn-secondary"
+                                onClick={cerrarModalEditarNombre}
+                                disabled={guardandoNombre}
+                            >
+                                Cancelar
                             </button>
                         </div>
                     </div>
@@ -338,58 +394,5 @@ function Chat({ chat, onVolver }) {
         </div>
     );
 }
-
-const editarNombreStyles = {
-    overlay: {
-        position: 'fixed', inset: 0,
-        background: 'rgba(0,0,0,0.5)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        zIndex: 9999
-    },
-    modal: {
-        background: 'var(--panel-background, #fff)',
-        borderRadius: '30px',
-        width: '350px',
-        padding: '31px',
-        maxWidth: '90vw',
-        boxShadow: '0 8px 32px solid var(--mid-grey)',
-        display: 'flex',
-        flexDirection: 'column'
-    },
-    input: {
-        height: '45px',
-        width: '100%',
-        padding: '8px 12px',
-        borderRadius: '50px',
-        border: 'var(--soft-grey)',
-        marginBottom: '4px',
-        fontSize: '0.9rem',
-        boxSizing: 'border-box',
-        background: 'var(--input-background, #f0f0f0)'
-    },
-    btnPrimary: {
-        flex: 1,
-        padding: '15px 18px',
-        background: 'var(--light-green)',
-        color: '#000',
-        border: '1.1px solid var(--light-green)',
-        borderRadius: '30px',
-        cursor: 'pointer',
-        fontWeight: 600,
-        boxSizing: 'border-box'
-    },
-    btnSecondary: {
-        flex: 1,
-        padding: '15px 18px',
-        background: 'transparent',
-        border: '1.1px solid var(--mid-grey)',
-        borderRadius: '30px',
-        cursor: 'pointer',
-        fontWeight: 600,
-        boxSizing: 'border-box'
-    }
-};
 
 export default Chat;

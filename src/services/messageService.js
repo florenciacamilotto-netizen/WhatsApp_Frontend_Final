@@ -10,7 +10,7 @@ function getAuthHeaders() {
     };
 }
 
-// GET /api/messages/:workspace_id — Trae el historial completo de mensajes del grupo
+// (GET) /api/messages/:workspace_id // // OBTENER HISTORIAL DE MENSAJES DEL GRUPO //
 export async function getMessages(workspace_id) {
     const response_http = await fetch(`${ENVIRONMENT.URL_API}/api/messages/${workspace_id}`, {
         method: 'GET',
@@ -21,7 +21,8 @@ export async function getMessages(workspace_id) {
     return response;
 }
 
-// GET /api/messages/:workspace_id/new?after=ISO_DATE — Trae solo los mensajes nuevos (para el polling)
+// (GET) /api/messages/:workspace_id/new?after=ISO_DATE //
+// (POLLING) OBTENER LOS MENSAJES NUEVOS DEL GRUPO //
 export async function getNewMessages(workspace_id, after) {
     const response_http = await fetch(`${ENVIRONMENT.URL_API}/api/messages/${workspace_id}/new?after=${encodeURIComponent(after)}`, {
         method: 'GET',
@@ -32,7 +33,7 @@ export async function getNewMessages(workspace_id, after) {
     return response;
 }
 
-// POST /api/messages/:workspace_id — Envía un mensaje al grupo
+// (POST) /api/messages/:workspace_id // // ENVIAR MENSAJE AL GRUPO //
 export async function sendMessage(workspace_id, contenido) {
     const response_http = await fetch(`${ENVIRONMENT.URL_API}/api/messages/${workspace_id}`, {
         method: 'POST',

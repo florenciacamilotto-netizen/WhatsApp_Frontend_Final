@@ -1,6 +1,6 @@
-import React, { createContext, useContext, useState } from 'react';
-import { Outlet } from 'react-router-dom';
-import useRequest from '../hooks/useRequest';
+import React, { createContext, useContext, useState } from "react";
+import { Outlet } from "react-router-dom";
+import useRequest from "../hooks/useRequest";
 import {
     getWorkspaces,
     getMyPendingInvitations,
@@ -10,9 +10,7 @@ import {
     updateWorkspace,
     deleteWorkspace,
     inviteMember,
-    downgradeSelf,
     leaveWorkspace,
-    kickMember
 } from '../services/workspaceService';
 
 export const WorkspacesContext = createContext({
@@ -20,16 +18,14 @@ export const WorkspacesContext = createContext({
     invitaciones: [],
     loading: false,
     error: null,
-    refetch: () => {},
-    crearGrupo: async () => {},
-    editarGrupo: async () => {},
-    eliminarGrupo: async () => {},
-    invitarMiembro: async () => {},
-    degradarme: async () => {},
-    abandonarGrupo: async () => {},
-    expulsarMiembro: async () => {},
-    aceptarInvitacion: async () => {},
-    rechazarInvitacion: async () => {}
+    refetch: () => { },
+    crearGrupo: async () => { },
+    editarGrupo: async () => { },
+    eliminarGrupo: async () => { },
+    invitarMiembro: async () => { },
+    abandonarGrupo: async () => { },
+    aceptarInvitacion: async () => { },
+    rechazarInvitacion: async () => { }
 });
 
 export const WorkspacesContextProvider = () => {
@@ -47,70 +43,64 @@ export const WorkspacesContextProvider = () => {
             const res = await getMyPendingInvitations();
             setInvitaciones(res?.data?.invitations || []);
         } catch (e) {
-            // No rompemos la pantalla si falla; simplemente no se muestran invitaciones
             console.error('Error al obtener invitaciones pendientes:', e.message);
         }
     };
 
-    // Cargar workspaces e invitaciones al montar
+    // CARGAR LOS WORKSPACES E INVITACIONES //
     React.useEffect(() => {
         fetchWorkspaces();
         fetchInvitaciones();
     }, []);
 
-    // Actualizar lista desde response del hook
+    // ACTUALIZAR LA LISTA DESDE RESPONSE //
     React.useEffect(() => {
         if (response?.data?.workspaces) setWorkspaces(response.data.workspaces);
     }, [response]);
 
-    // --- Acciones ---
-
+    // CREAR GRUPO //
     async function crearGrupo(nombre, descripcion) {
         const res = await createWorkspace(nombre, descripcion);
         await fetchWorkspaces();
         return res;
     }
-
+    
+    // EDITAR GRUPO //
     async function editarGrupo(workspace_id, nombre, descripcion) {
         const res = await updateWorkspace(workspace_id, nombre, descripcion);
         await fetchWorkspaces();
         return res;
     }
 
+    // ELIMINAR GRUPO //
     async function eliminarGrupo(workspace_id) {
         const res = await deleteWorkspace(workspace_id);
         await fetchWorkspaces();
         return res;
     }
 
+    // INVITAR MIEMBRO //
     async function invitarMiembro(workspace_id, email, role) {
         return await inviteMember(workspace_id, email, role);
     }
-
-    async function degradarme(workspace_id) {
-        const res = await downgradeSelf(workspace_id);
-        await fetchWorkspaces();
-        return res;
-    }
-
+    
+    // ABANDONAR GRUPO //
     async function abandonarGrupo(workspace_id) {
         const res = await leaveWorkspace(workspace_id);
         await fetchWorkspaces();
         return res;
     }
 
-    async function expulsarMiembro(workspace_id, member_id) {
-        return await kickMember(workspace_id, member_id);
-    }
-
+    // ACEPTAR INVITACIÓN //
     async function aceptarInvitacion(workspace_id) {
         const res = await acceptInvitation(workspace_id);
-        // Saco la invitación de la lista local y refresco los grupos (ahora va a aparecer ahí)
+        // REFRESCAR LOS GRUPOS //
         setInvitaciones(prev => prev.filter(inv => inv.workspace_id !== workspace_id));
         await fetchWorkspaces();
         return res;
     }
 
+    // RECHAZAR INVITACIÓN //
     async function rechazarInvitacion(workspace_id) {
         const res = await rejectInvitation(workspace_id);
         setInvitaciones(prev => prev.filter(inv => inv.workspace_id !== workspace_id));
@@ -127,9 +117,7 @@ export const WorkspacesContextProvider = () => {
         editarGrupo,
         eliminarGrupo,
         invitarMiembro,
-        degradarme,
         abandonarGrupo,
-        expulsarMiembro,
         aceptarInvitacion,
         rechazarInvitacion
     };
@@ -141,8 +129,7 @@ export const WorkspacesContextProvider = () => {
     );
 };
 
-// Hook de acceso rápido
+// HOOK DE ACCESO RÁPIDO //
 export function useWorkspaces() {
     return useContext(WorkspacesContext);
 }
-

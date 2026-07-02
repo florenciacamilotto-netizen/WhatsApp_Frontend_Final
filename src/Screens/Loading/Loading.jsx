@@ -1,6 +1,6 @@
-import React, { useContext, useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { AuthContext } from '../../context/AuthContext'
+import React, { useContext, useEffect, useState } from "react"
+import { useNavigate } from "react-router-dom"
+import { AuthContext } from "../../context/AuthContext"
 
 function Loading() {
     const navigate = useNavigate()
@@ -24,7 +24,7 @@ function Loading() {
         }, intervalo)
 
         const redirect = setTimeout(() => {
-            // Recogemos el token guardado por Login y lo confirmamos
+            // CONFIRMAR TOKEN GUARDADO POR LOGIN //
             const pendingToken = sessionStorage.getItem('pending_token')
             if (pendingToken) {
                 sessionStorage.removeItem('pending_token')

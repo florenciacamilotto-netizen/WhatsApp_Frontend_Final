@@ -16,7 +16,6 @@ import { RegisterScreen } from './Screens/RegisterScreen/RegisterScreen.jsx'
 import { RegisterSuccess } from './Screens/RegisterSuccess/RegisterSuccess.jsx'
 import { VerifySuccess } from './Screens/VerifySuccess/VerifySuccess.jsx'
 import { VerifyError } from './Screens/VerifyError/VerifyError.jsx'
-import { ResetPasswordScreen } from './Screens/ResetPasswordScreen/ResetPasswordScreen.jsx'
 
 import { AuthContextProvider } from './context/AuthContext'
 import { WorkspacesContextProvider } from './context/WorkspacesContext'
@@ -31,7 +30,6 @@ function App() {
       <div className={darkMode ? 'app dark-mode' : 'app'}>
         <Routes>
 
-          {/* Rutas públicas + /loading: AlreadyAuthMiddleware las deja pasar siempre */}
           <Route element={<AlreadyAuthMiddleware />}>
             <Route path='/' element={<Login />} />
             <Route path='/login' element={<Login />} />
@@ -39,7 +37,6 @@ function App() {
             <Route path='/register-success' element={<RegisterSuccess />} />
             <Route path='/verify-success' element={<VerifySuccess />} />
             <Route path='/verify-error' element={<VerifyError />} />
-            <Route path='/reset-password' element={<ResetPasswordScreen />} />
             <Route path='/loading' element={<Loading />} />
           </Route>
 

@@ -28,8 +28,6 @@ export const Login = () => {
 
     useEffect(() => {
         if (loginRequestResponse?.ok) {
-            // Guardamos el token en sessionStorage (temporal)
-            // para que AlreadyAuthMiddleware NO lo detecte todavía
             sessionStorage.setItem('pending_token', loginRequestResponse?.data?.access_token)
             navigate("/loading")
         }

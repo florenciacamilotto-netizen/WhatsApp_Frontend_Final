@@ -147,6 +147,10 @@
     width: 128px;
 }
 
+.profile-settings {
+    margin-bottom: 20px;
+}
+
 .profile-settings_list {
     align-items: center;
     background-color: white;
@@ -159,6 +163,18 @@
     padding-left: 20px;
     padding-right: 35px;
     width: 95%;
+}
+
+.profile-settings_list.--cifrado {
+    height: 80px;
+}
+
+.profile-settings_list.--miembros:hover {
+    background-color: transparent;
+}
+
+.profile-settings_list.--negativo:hover {
+    background-color: #FDE5EA;
 }
 
 .profile-settings_list:hover {
@@ -218,7 +234,7 @@
     width: 51px;
 }
 
-.dark-mode .btn-notifications{
+.dark-mode .btn-notifications {
     background: var(--background-dark_grey);
     border: 2px solid #959393;
     cursor: pointer;

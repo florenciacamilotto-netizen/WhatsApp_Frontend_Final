@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react'
-import Sidebar from '../../Components/Sidebar'
-import Menu from '../../Components/Menu'
-import DescargarApp from '../../Components/DescargarApp'
-import Chat from '../../Components/Chat'
+import React, { useState, useEffect } from "react"
+import Sidebar from "../../Components/Sidebar"
+import Menu from "../../Components/Menu"
+import DescargarApp from "../../Components/DescargarApp"
+import Chat from "../../Components/Chat"
 
 export default function Home({ darkMode, onToggleDarkMode }) {
 

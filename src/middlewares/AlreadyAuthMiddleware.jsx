@@ -6,7 +6,7 @@ function AlreadyAuthMiddleware() {
     const { isLogged } = useContext(AuthContext)
     const location = useLocation()
 
-    // /loading siempre pasa, es el puente entre login y home
+    // LOADING CONECTA LOGIN CON HOME //
     if (location.pathname === '/loading') return <Outlet />
 
     if (!isLogged) {
